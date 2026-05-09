@@ -363,20 +363,16 @@ th {
 }
 
 .seed-control {
-  align-items: end;
-  display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(120px, 200px) auto;
+  display: block;
   margin: 0 0 18px;
-  max-width: 360px;
+  max-width: 200px;
 }
 
 .seed-control label {
   margin: 0;
 }
 
-.seed-control input,
-.seed-control button {
+.seed-control input {
   min-height: 36px;
 }
 
@@ -483,7 +479,6 @@ th {
   }
 
   .seed-control {
-    grid-template-columns: 1fr;
     max-width: none;
   }
 }

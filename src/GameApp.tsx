@@ -260,23 +260,10 @@ export default function GameApp() {
     });
   }
 
-  function handleProducedSeedDraftChange(id: string, value: string) {
-    setSeedDrafts((current) => ({ ...current, [id]: value }));
-  }
-
-  function handleRerollProducedSeed(horse: ProducedHorse) {
-    const seedText = seedDrafts[horse.id] ?? String(horse.seedIndex);
-    const nextSeed = Number(seedText);
-    if (
-      seedText.trim() === "" ||
-      !Number.isInteger(nextSeed) ||
-      nextSeed < 0 ||
-      nextSeed >= SEED_PATTERN_COUNT
-    ) {
-      setMessage({
-        tone: "warning",
-        text: `seedIndexは0から${SEED_PATTERN_COUNT - 1}の整数で指定してください。`,
-      });
+  function handleProducedSeedChange(horse: ProducedHorse, value: string) {
+    setSeedDrafts((current) => ({ ...current, [horse.id]: value }));
+    const nextSeed = parseSeedIndex(value);
+    if (nextSeed === null) {
       return;
     }
 
@@ -294,12 +281,12 @@ export default function GameApp() {
         item.id === horse.id ? rerolled : item,
       ),
     }));
+    setMessage(null);
     setSeedDrafts((current) => {
       const next = { ...current };
       delete next[horse.id];
       return next;
     });
-    setMessage({ tone: "info", text: `${horse.name}のseedIndexを${nextSeed}に変更しました。` });
   }
 
   function handleDeleteProduced(id: string) {
@@ -484,8 +471,7 @@ export default function GameApp() {
               evaluation={lastProduced.breedingEvaluation}
               findHorseName={findHorseName}
               horse={lastProduced}
-              onSeedApply={() => handleRerollProducedSeed(lastProduced)}
-              onSeedChange={(value) => handleProducedSeedDraftChange(lastProduced.id, value)}
+              onSeedChange={(value) => handleProducedSeedChange(lastProduced, value)}
               seedValue={seedDrafts[lastProduced.id] ?? String(lastProduced.seedIndex)}
               showDebug={showDebug}
             />
@@ -515,8 +501,7 @@ export default function GameApp() {
                     )}
                     <AbilityRankStrip horse={horse} />
                     <SeedControl
-                      onApply={() => handleRerollProducedSeed(horse)}
-                      onChange={(value) => handleProducedSeedDraftChange(horse.id, value)}
+                      onChange={(value) => handleProducedSeedChange(horse, value)}
                       value={seedDrafts[horse.id] ?? String(horse.seedIndex)}
                     />
                   </div>
@@ -686,7 +671,6 @@ function ProducedResult({
   evaluation,
   findHorseName,
   horse,
-  onSeedApply,
   onSeedChange,
   seedValue,
   showDebug,
@@ -694,7 +678,6 @@ function ProducedResult({
   evaluation: BreedingEvaluation;
   findHorseName: (id: string) => string;
   horse: ProducedHorse;
-  onSeedApply: () => void;
   onSeedChange: (value: string) => void;
   seedValue: string;
   showDebug: boolean;
@@ -709,7 +692,7 @@ function ProducedResult({
         <p>配合評価 {BREEDING_GRADE_LABELS[evaluation.grade]}</p>
         <p>{buildResultComment(evaluation)}</p>
       </div>
-      <SeedControl onApply={onSeedApply} onChange={onSeedChange} value={seedValue} />
+      <SeedControl onChange={onSeedChange} value={seedValue} />
       <AbilityTable horse={horse} />
       <PedigreeTable pedigree={horse.pedigree} />
       {showDebug && <AbilityDebug horse={horse} />}
@@ -718,11 +701,9 @@ function ProducedResult({
 }
 
 function SeedControl({
-  onApply,
   onChange,
   value,
 }: {
-  onApply: () => void;
   onChange: (value: string) => void;
   value: string;
 }) {
@@ -734,14 +715,12 @@ function SeedControl({
           inputMode="numeric"
           max={SEED_PATTERN_COUNT - 1}
           min={0}
+          step={1}
           type="number"
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />
       </label>
-      <button type="button" onClick={onApply}>
-        能力再計算
-      </button>
     </div>
   );
 }
@@ -875,6 +854,14 @@ function formatFileDate(value: Date): string {
     pad(value.getHours()),
     pad(value.getMinutes()),
   ].join("");
+}
+
+function parseSeedIndex(value: string): number | null {
+  const seed = Number(value);
+  if (value.trim() === "" || !Number.isInteger(seed) || seed < 0 || seed >= SEED_PATTERN_COUNT) {
+    return null;
+  }
+  return seed;
 }
 
 function unique(values: string[]): string[] {
