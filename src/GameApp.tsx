@@ -9,7 +9,12 @@ import {
   SEX_LABELS,
   SURFACE_LABELS,
 } from "./domain/constants.ts";
-import { buildFoalPedigree, evaluateBreeding, generateProducedHorse } from "./domain/breeding.ts";
+import {
+  buildFoalPedigree,
+  evaluateBreeding,
+  generateProducedHorse,
+  rerollProducedHorseSeed,
+} from "./domain/breeding.ts";
 import { producedHorseToBroodmare, producedHorseToStallion } from "./domain/homebred.ts";
 import {
   createInitialSaveData,
@@ -58,6 +63,7 @@ export default function GameApp() {
   const [selectedSireId, setSelectedSireId] = useState("");
   const [selectedDamId, setSelectedDamId] = useState("");
   const [seedIndex, setSeedIndex] = useState(0);
+  const [seedDrafts, setSeedDrafts] = useState<Record<string, string>>({});
   const [foalName, setFoalName] = useState("");
   const [lastProducedId, setLastProducedId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -177,6 +183,7 @@ export default function GameApp() {
       setSaveData(parsed.data);
       setIsDirty(true);
       setLastProducedId(null);
+      setSeedDrafts({});
       setMessage({
         tone: parsed.warning ? "warning" : "info",
         text: parsed.warning ?? "JSONを読み込みました。",
@@ -253,6 +260,48 @@ export default function GameApp() {
     });
   }
 
+  function handleProducedSeedDraftChange(id: string, value: string) {
+    setSeedDrafts((current) => ({ ...current, [id]: value }));
+  }
+
+  function handleRerollProducedSeed(horse: ProducedHorse) {
+    const seedText = seedDrafts[horse.id] ?? String(horse.seedIndex);
+    const nextSeed = Number(seedText);
+    if (
+      seedText.trim() === "" ||
+      !Number.isInteger(nextSeed) ||
+      nextSeed < 0 ||
+      nextSeed >= SEED_PATTERN_COUNT
+    ) {
+      setMessage({
+        tone: "warning",
+        text: `seedIndexは0から${SEED_PATTERN_COUNT - 1}の整数で指定してください。`,
+      });
+      return;
+    }
+
+    const sire = availableStallions.find((item) => item.id === horse.sireId);
+    const dam = availableBroodmares.find((item) => item.id === horse.damId);
+    if (!sire || !dam) {
+      setMessage({ tone: "error", text: "親馬が見つからないためseedを変更できません。" });
+      return;
+    }
+
+    const rerolled = rerollProducedHorseSeed({ horse, sire, dam, seedIndex: nextSeed });
+    updateSaveData((current) => ({
+      ...current,
+      producedHorses: current.producedHorses.map((item) =>
+        item.id === horse.id ? rerolled : item,
+      ),
+    }));
+    setSeedDrafts((current) => {
+      const next = { ...current };
+      delete next[horse.id];
+      return next;
+    });
+    setMessage({ tone: "info", text: `${horse.name}のseedIndexを${nextSeed}に変更しました。` });
+  }
+
   function handleDeleteProduced(id: string) {
     updateSaveData((current) => ({
       ...current,
@@ -261,6 +310,11 @@ export default function GameApp() {
       homebredBroodmareIds: current.homebredBroodmareIds.filter((horseId) => horseId !== id),
     }));
     if (lastProducedId === id) setLastProducedId(null);
+    setSeedDrafts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
     setMessage({ tone: "info", text: "生産馬を削除しました。" });
   }
 
@@ -430,6 +484,9 @@ export default function GameApp() {
               evaluation={lastProduced.breedingEvaluation}
               findHorseName={findHorseName}
               horse={lastProduced}
+              onSeedApply={() => handleRerollProducedSeed(lastProduced)}
+              onSeedChange={(value) => handleProducedSeedDraftChange(lastProduced.id, value)}
+              seedValue={seedDrafts[lastProduced.id] ?? String(lastProduced.seedIndex)}
               showDebug={showDebug}
             />
           ) : (
@@ -457,6 +514,11 @@ export default function GameApp() {
                       <p>{horse.retiredAs === "stallion" ? "自家生産種牡馬" : "自家生産繁殖牝馬"}</p>
                     )}
                     <AbilityRankStrip horse={horse} />
+                    <SeedControl
+                      onApply={() => handleRerollProducedSeed(horse)}
+                      onChange={(value) => handleProducedSeedDraftChange(horse.id, value)}
+                      value={seedDrafts[horse.id] ?? String(horse.seedIndex)}
+                    />
                   </div>
                   <div className="item-actions">
                     {horse.sex === "male" && (
@@ -624,11 +686,17 @@ function ProducedResult({
   evaluation,
   findHorseName,
   horse,
+  onSeedApply,
+  onSeedChange,
+  seedValue,
   showDebug,
 }: {
   evaluation: BreedingEvaluation;
   findHorseName: (id: string) => string;
   horse: ProducedHorse;
+  onSeedApply: () => void;
+  onSeedChange: (value: string) => void;
+  seedValue: string;
   showDebug: boolean;
 }) {
   return (
@@ -641,10 +709,40 @@ function ProducedResult({
         <p>配合評価 {BREEDING_GRADE_LABELS[evaluation.grade]}</p>
         <p>{buildResultComment(evaluation)}</p>
       </div>
+      <SeedControl onApply={onSeedApply} onChange={onSeedChange} value={seedValue} />
       <AbilityTable horse={horse} />
       <PedigreeTable pedigree={horse.pedigree} />
       {showDebug && <AbilityDebug horse={horse} />}
     </section>
+  );
+}
+
+function SeedControl({
+  onApply,
+  onChange,
+  value,
+}: {
+  onApply: () => void;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <div className="seed-control">
+      <label>
+        seedIndex
+        <input
+          inputMode="numeric"
+          max={SEED_PATTERN_COUNT - 1}
+          min={0}
+          type="number"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </label>
+      <button type="button" onClick={onApply}>
+        能力再計算
+      </button>
+    </div>
   );
 }
 

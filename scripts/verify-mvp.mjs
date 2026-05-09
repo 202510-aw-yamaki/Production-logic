@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { evaluateBreeding, evaluatePedigree, generateProducedHorse } from "../src/domain/breeding.ts";
+import {
+  evaluateBreeding,
+  evaluatePedigree,
+  generateProducedHorse,
+  rerollProducedHorseSeed,
+} from "../src/domain/breeding.ts";
 import { SEED_PATTERN_COUNT } from "../src/domain/constants.ts";
 import { defaultBroodmares, defaultStallions } from "../src/domain/horses.ts";
 import {
@@ -224,10 +229,19 @@ const producedB = generateProducedHorse({
 assert.deepEqual(producedA.abilities, producedB.abilities, "same sire, dam and seed should be deterministic");
 assert.equal(evaluateBreeding(sire, dam).grade, "very_good", "representative pair should be very_good");
 assert.ok(Math.min(...Object.values(producedA.abilities)) >= 32, "very_good should guarantee each ability >=32");
+const rerolledProduced = rerollProducedHorseSeed({ horse: producedA, sire, dam, seedIndex: 43 });
+assert.equal(rerolledProduced.id, producedA.id, "reroll should keep produced horse id");
+assert.equal(rerolledProduced.seedIndex, 43, "reroll should update seedIndex");
+assert.notDeepEqual(rerolledProduced.abilities, producedA.abilities, "different seed should change abilities");
 assert.throws(
   () => generateProducedHorse({ sire, dam, seedIndex: SEED_PATTERN_COUNT, birthIndex: 1 }),
   /seedIndex/,
   "seedIndex should reject 8192",
+);
+assert.throws(
+  () => rerollProducedHorseSeed({ horse: producedA, sire, dam, seedIndex: SEED_PATTERN_COUNT }),
+  /seedIndex/,
+  "reroll should reject 8192",
 );
 
 const goodSire = makeSyntheticStallion("good-sire", ["A", "B", "C", "D", "E", "F"], ["M"]);

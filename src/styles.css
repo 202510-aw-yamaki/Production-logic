@@ -362,6 +362,24 @@ th {
   padding: 12px;
 }
 
+.seed-control {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(120px, 200px) auto;
+  margin: 0 0 18px;
+  max-width: 360px;
+}
+
+.seed-control label {
+  margin: 0;
+}
+
+.seed-control input,
+.seed-control button {
+  min-height: 36px;
+}
+
 .ability-panel {
   margin-bottom: 20px;
 }
@@ -462,5 +480,10 @@ th {
   .metric-grid,
   .result-summary {
     grid-template-columns: 1fr;
+  }
+
+  .seed-control {
+    grid-template-columns: 1fr;
+    max-width: none;
   }
 }

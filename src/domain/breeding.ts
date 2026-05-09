@@ -32,6 +32,13 @@ interface GenerateFoalInput {
   createdAt?: string;
 }
 
+interface RerollProducedHorseSeedInput {
+  horse: ProducedHorse;
+  sire: Stallion;
+  dam: Broodmare;
+  seedIndex: number;
+}
+
 interface AncestorOccurrence {
   node: PedigreeNode;
   position: string;
@@ -121,9 +128,7 @@ export function evaluatePedigree(pedigree: FiveGenerationPedigree): BreedingEval
 }
 
 export function generateProducedHorse(input: GenerateFoalInput): ProducedHorse {
-  if (!Number.isInteger(input.seedIndex) || input.seedIndex < 0 || input.seedIndex >= SEED_PATTERN_COUNT) {
-    throw new Error(`seedIndex must be between 0 and ${SEED_PATTERN_COUNT - 1}`);
-  }
+  validateSeedIndex(input.seedIndex);
 
   const id = `foal-${input.birthIndex}-${input.sire.id}-${input.dam.id}-${input.seedIndex}`;
   const pedigree = buildFoalPedigree(input.sire, input.dam, id);
@@ -153,6 +158,26 @@ export function generateProducedHorse(input: GenerateFoalInput): ProducedHorse {
       g1Wins: 0,
       injuryCount: 0,
     },
+  };
+}
+
+export function rerollProducedHorseSeed(input: RerollProducedHorseSeedInput): ProducedHorse {
+  validateSeedIndex(input.seedIndex);
+
+  const pedigree = buildFoalPedigree(input.sire, input.dam, input.horse.id);
+  const breedingEvaluation = evaluatePedigree(pedigree);
+  const random = createSeededRandom(`${input.sire.id}:${input.dam.id}:${input.seedIndex}`);
+  const abilities = generateAbilityScores(input.sire, input.dam, breedingEvaluation, random);
+
+  return {
+    ...input.horse,
+    sireId: input.sire.id,
+    damId: input.dam.id,
+    seedIndex: input.seedIndex,
+    abilities,
+    ranks: abilityScoresToRanks(abilities),
+    pedigree,
+    breedingEvaluation,
   };
 }
 
@@ -315,6 +340,12 @@ function average(values: number[]): number {
 
 function roundBloodPercent(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+function validateSeedIndex(seedIndex: number): void {
+  if (!Number.isInteger(seedIndex) || seedIndex < 0 || seedIndex >= SEED_PATTERN_COUNT) {
+    throw new Error(`seedIndex must be between 0 and ${SEED_PATTERN_COUNT - 1}`);
+  }
 }
 
 function createSeededRandom(seedText: string): () => number {
