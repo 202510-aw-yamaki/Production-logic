@@ -1,0 +1,656 @@
+import type {
+  BloodRegion,
+  Broodmare,
+  FiveGenerationPedigree,
+  PedigreeNode,
+  Rank,
+  Stallion,
+  Surface,
+} from "./types";
+
+const GLOBAL_SIRE_LINES = [
+  "Northern Dancer",
+  "Mr. Prospector",
+  "Sunday Silence",
+  "Roberto",
+  "Hail to Reason",
+  "Nasrullah",
+  "Native Dancer",
+  "Kingmambo",
+  "Danzig",
+  "Fappiano",
+  "Storm Cat",
+  "Sadler's Wells",
+  "Mill Reef",
+  "Seattle Slew",
+  "Halo",
+  "Nijinsky",
+];
+
+const GLOBAL_MARE_LINES = [
+  "La Troienne",
+  "Almahmoud",
+  "Special",
+  "Urban Sea",
+  "Miesque",
+  "Best in Show",
+  "Courtly Dee",
+  "Number",
+  "Hasili",
+  "Fall Aspen",
+  "Boudoir",
+  "Pretty Polly",
+];
+
+interface StallionProfile {
+  id: string;
+  name: string;
+  surface: Surface;
+  distanceMin: number;
+  distanceMax: number;
+  temperamentRank: Rank;
+  bottomRank: Rank;
+  robustnessRank: Rank;
+  performanceRank: Rank;
+  stabilityRank: Rank;
+  sireLine: string;
+  mareLine: string;
+  bloodRegion: BloodRegion;
+  lineOffset: number;
+}
+
+interface BroodmareProfile {
+  id: string;
+  name: string;
+  speedRank: Rank;
+  staminaRank: Rank;
+  surface: Surface;
+  sireLine: string;
+  mareLine: string;
+  bloodRegion: BloodRegion;
+  lineOffset: number;
+}
+
+function slug(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function regionFromLine(line: string, fallback: BloodRegion): BloodRegion {
+  if (["Sunday Silence", "King Kamehameha", "Deep Impact", "Stay Gold"].includes(line)) {
+    return "japan";
+  }
+  if (["Sadler's Wells", "Mill Reef", "Cape Cross", "Iffraaj"].includes(line)) {
+    return "europe";
+  }
+  if (["Fappiano", "Storm Cat", "Seattle Slew", "Tapit", "Relaunch"].includes(line)) {
+    return "america";
+  }
+  return fallback;
+}
+
+function buildPedigree(profile: {
+  id: string;
+  sireLine: string;
+  mareLine: string;
+  bloodRegion: BloodRegion;
+  lineOffset: number;
+}): FiveGenerationPedigree {
+  const sireLines = [
+    profile.sireLine,
+    profile.mareLine,
+    ...GLOBAL_SIRE_LINES.slice(profile.lineOffset),
+    ...GLOBAL_SIRE_LINES.slice(0, profile.lineOffset),
+  ];
+  const mareLines = [
+    profile.mareLine,
+    ...GLOBAL_MARE_LINES.slice(profile.lineOffset % GLOBAL_MARE_LINES.length),
+    ...GLOBAL_MARE_LINES.slice(0, profile.lineOffset % GLOBAL_MARE_LINES.length),
+  ];
+
+  const generations = Array.from({ length: 5 }, (_, generationIndex) => {
+    const count = 2 ** (generationIndex + 1);
+    return Array.from({ length: count }, (_, slotIndex): PedigreeNode => {
+      const sireLine = sireLines[(slotIndex + generationIndex) % sireLines.length];
+      const mareLine = mareLines[(slotIndex * 2 + generationIndex) % mareLines.length];
+      const ancestorId = [
+        "anc",
+        slug(sireLine),
+        generationIndex + 1,
+        slotIndex,
+      ].join("-");
+      return {
+        id: ancestorId,
+        name: `${sireLine} ${generationIndex + 1}-${slotIndex + 1}`,
+        sireLine,
+        mareLine,
+        bloodRegion: regionFromLine(sireLine, profile.bloodRegion),
+      };
+    });
+  });
+
+  return {
+    rootHorseId: profile.id,
+    generations,
+  };
+}
+
+function createStallion(profile: StallionProfile): Stallion {
+  return {
+    id: profile.id,
+    name: profile.name,
+    source: "default",
+    surface: profile.surface,
+    distanceMin: profile.distanceMin,
+    distanceMax: profile.distanceMax,
+    temperamentRank: profile.temperamentRank,
+    bottomRank: profile.bottomRank,
+    robustnessRank: profile.robustnessRank,
+    performanceRank: profile.performanceRank,
+    stabilityRank: profile.stabilityRank,
+    sireLine: profile.sireLine,
+    mareLine: profile.mareLine,
+    bloodRegion: profile.bloodRegion,
+    pedigree: buildPedigree(profile),
+  };
+}
+
+function createBroodmare(profile: BroodmareProfile): Broodmare {
+  return {
+    id: profile.id,
+    name: profile.name,
+    source: "default",
+    speedRank: profile.speedRank,
+    staminaRank: profile.staminaRank,
+    surface: profile.surface,
+    sireLine: profile.sireLine,
+    mareLine: profile.mareLine,
+    bloodRegion: profile.bloodRegion,
+    pedigree: buildPedigree(profile),
+  };
+}
+
+export function stallionToPedigreeNode(stallion: Stallion): PedigreeNode {
+  return {
+    id: stallion.id,
+    name: stallion.name,
+    sireLine: stallion.sireLine,
+    mareLine: stallion.mareLine,
+    bloodRegion: stallion.bloodRegion,
+  };
+}
+
+export function broodmareToPedigreeNode(broodmare: Broodmare): PedigreeNode {
+  return {
+    id: broodmare.id,
+    name: broodmare.name,
+    sireLine: broodmare.sireLine,
+    mareLine: broodmare.mareLine,
+    bloodRegion: broodmare.bloodRegion,
+  };
+}
+
+const STALLION_PROFILES: StallionProfile[] = [
+  {
+    id: "stallion-kitasan-black",
+    name: "キタサンブラック",
+    surface: "turf",
+    distanceMin: 1800,
+    distanceMax: 3200,
+    temperamentRank: "B",
+    bottomRank: "A",
+    robustnessRank: "A",
+    performanceRank: "A",
+    stabilityRank: "A",
+    sireLine: "Sunday Silence",
+    mareLine: "Bupers",
+    bloodRegion: "japan",
+    lineOffset: 0,
+  },
+  {
+    id: "stallion-kizuna",
+    name: "キズナ",
+    surface: "versatile",
+    distanceMin: 1600,
+    distanceMax: 3000,
+    temperamentRank: "B",
+    bottomRank: "A",
+    robustnessRank: "B",
+    performanceRank: "A",
+    stabilityRank: "B",
+    sireLine: "Deep Impact",
+    mareLine: "Pacific Princess",
+    bloodRegion: "japan",
+    lineOffset: 1,
+  },
+  {
+    id: "stallion-mikki-isle",
+    name: "ミッキーアイル",
+    surface: "turf",
+    distanceMin: 1200,
+    distanceMax: 1800,
+    temperamentRank: "C",
+    bottomRank: "B",
+    robustnessRank: "B",
+    performanceRank: "B",
+    stabilityRank: "B",
+    sireLine: "Deep Impact",
+    mareLine: "Star Isle",
+    bloodRegion: "japan",
+    lineOffset: 2,
+  },
+  {
+    id: "stallion-real-steel",
+    name: "リアルスティール",
+    surface: "turf",
+    distanceMin: 1600,
+    distanceMax: 2400,
+    temperamentRank: "B",
+    bottomRank: "B",
+    robustnessRank: "B",
+    performanceRank: "B",
+    stabilityRank: "C",
+    sireLine: "Deep Impact",
+    mareLine: "Monevassia",
+    bloodRegion: "japan",
+    lineOffset: 3,
+  },
+  {
+    id: "stallion-epiphaneia",
+    name: "エピファネイア",
+    surface: "turf",
+    distanceMin: 1800,
+    distanceMax: 3000,
+    temperamentRank: "C",
+    bottomRank: "A",
+    robustnessRank: "B",
+    performanceRank: "A",
+    stabilityRank: "C",
+    sireLine: "Roberto",
+    mareLine: "Cesario",
+    bloodRegion: "japan",
+    lineOffset: 4,
+  },
+  {
+    id: "stallion-saturnalia",
+    name: "サートゥルナーリア",
+    surface: "turf",
+    distanceMin: 1600,
+    distanceMax: 2400,
+    temperamentRank: "B",
+    bottomRank: "A",
+    robustnessRank: "B",
+    performanceRank: "A",
+    stabilityRank: "B",
+    sireLine: "Kingmambo",
+    mareLine: "Cesario",
+    bloodRegion: "japan",
+    lineOffset: 5,
+  },
+  {
+    id: "stallion-lord-kanaloa",
+    name: "ロードカナロア",
+    surface: "turf",
+    distanceMin: 1000,
+    distanceMax: 2000,
+    temperamentRank: "A",
+    bottomRank: "B",
+    robustnessRank: "A",
+    performanceRank: "A",
+    stabilityRank: "A",
+    sireLine: "Kingmambo",
+    mareLine: "Lady Blossom",
+    bloodRegion: "japan",
+    lineOffset: 6,
+  },
+  {
+    id: "stallion-gold-ship",
+    name: "ゴールドシップ",
+    surface: "turf",
+    distanceMin: 2000,
+    distanceMax: 3600,
+    temperamentRank: "D",
+    bottomRank: "A",
+    robustnessRank: "A",
+    performanceRank: "A",
+    stabilityRank: "D",
+    sireLine: "Stay Gold",
+    mareLine: "Point Flag",
+    bloodRegion: "japan",
+    lineOffset: 7,
+  },
+  {
+    id: "stallion-maurice",
+    name: "モーリス",
+    surface: "versatile",
+    distanceMin: 1400,
+    distanceMax: 2200,
+    temperamentRank: "B",
+    bottomRank: "A",
+    robustnessRank: "B",
+    performanceRank: "A",
+    stabilityRank: "B",
+    sireLine: "Roberto",
+    mareLine: "Mejiro Frances",
+    bloodRegion: "japan",
+    lineOffset: 8,
+  },
+  {
+    id: "stallion-orphevre",
+    name: "オルフェーヴル",
+    surface: "versatile",
+    distanceMin: 1600,
+    distanceMax: 3200,
+    temperamentRank: "D",
+    bottomRank: "A",
+    robustnessRank: "B",
+    performanceRank: "A",
+    stabilityRank: "D",
+    sireLine: "Stay Gold",
+    mareLine: "Oriental Art",
+    bloodRegion: "japan",
+    lineOffset: 9,
+  },
+  {
+    id: "stallion-suver-richard",
+    name: "スワーヴリチャード",
+    surface: "turf",
+    distanceMin: 1800,
+    distanceMax: 2600,
+    temperamentRank: "B",
+    bottomRank: "B",
+    robustnessRank: "B",
+    performanceRank: "B",
+    stabilityRank: "A",
+    sireLine: "Heart's Cry",
+    mareLine: "Pirramimma",
+    bloodRegion: "japan",
+    lineOffset: 10,
+  },
+  {
+    id: "stallion-silver-state",
+    name: "シルバーステート",
+    surface: "turf",
+    distanceMin: 1400,
+    distanceMax: 2200,
+    temperamentRank: "B",
+    bottomRank: "B",
+    robustnessRank: "C",
+    performanceRank: "B",
+    stabilityRank: "C",
+    sireLine: "Deep Impact",
+    mareLine: "Silverskaya",
+    bloodRegion: "japan",
+    lineOffset: 11,
+  },
+  {
+    id: "stallion-drefong",
+    name: "ドレフォン",
+    surface: "dirt",
+    distanceMin: 1200,
+    distanceMax: 2000,
+    temperamentRank: "B",
+    bottomRank: "B",
+    robustnessRank: "A",
+    performanceRank: "B",
+    stabilityRank: "B",
+    sireLine: "Storm Cat",
+    mareLine: "Eltimaas",
+    bloodRegion: "america",
+    lineOffset: 12,
+  },
+  {
+    id: "stallion-le-vent-se-leve",
+    name: "ルヴァンスレーヴ",
+    surface: "dirt",
+    distanceMin: 1600,
+    distanceMax: 2200,
+    temperamentRank: "B",
+    bottomRank: "B",
+    robustnessRank: "A",
+    performanceRank: "B",
+    stabilityRank: "B",
+    sireLine: "Roberto",
+    mareLine: "Maestrale",
+    bloodRegion: "japan",
+    lineOffset: 13,
+  },
+  {
+    id: "stallion-nadal",
+    name: "ナダル",
+    surface: "dirt",
+    distanceMin: 1200,
+    distanceMax: 2000,
+    temperamentRank: "B",
+    bottomRank: "B",
+    robustnessRank: "B",
+    performanceRank: "B",
+    stabilityRank: "C",
+    sireLine: "Fappiano",
+    mareLine: "Ascending Angel",
+    bloodRegion: "america",
+    lineOffset: 14,
+  },
+  {
+    id: "stallion-admire-mars",
+    name: "アドマイヤマーズ",
+    surface: "turf",
+    distanceMin: 1400,
+    distanceMax: 2000,
+    temperamentRank: "A",
+    bottomRank: "B",
+    robustnessRank: "B",
+    performanceRank: "B",
+    stabilityRank: "B",
+    sireLine: "Northern Dancer",
+    mareLine: "Via Medici",
+    bloodRegion: "japan",
+    lineOffset: 15,
+  },
+  {
+    id: "stallion-frankel",
+    name: "Frankel",
+    surface: "turf",
+    distanceMin: 1400,
+    distanceMax: 2400,
+    temperamentRank: "B",
+    bottomRank: "A",
+    robustnessRank: "A",
+    performanceRank: "A",
+    stabilityRank: "A",
+    sireLine: "Sadler's Wells",
+    mareLine: "Kind",
+    bloodRegion: "europe",
+    lineOffset: 0,
+  },
+  {
+    id: "stallion-too-darn-hot",
+    name: "Too Darn Hot",
+    surface: "turf",
+    distanceMin: 1400,
+    distanceMax: 2200,
+    temperamentRank: "A",
+    bottomRank: "B",
+    robustnessRank: "B",
+    performanceRank: "B",
+    stabilityRank: "B",
+    sireLine: "Dubai Millennium",
+    mareLine: "Dar Re Mi",
+    bloodRegion: "europe",
+    lineOffset: 1,
+  },
+  {
+    id: "stallion-sea-the-stars",
+    name: "Sea The Stars",
+    surface: "turf",
+    distanceMin: 1800,
+    distanceMax: 3200,
+    temperamentRank: "A",
+    bottomRank: "A",
+    robustnessRank: "A",
+    performanceRank: "A",
+    stabilityRank: "A",
+    sireLine: "Cape Cross",
+    mareLine: "Urban Sea",
+    bloodRegion: "europe",
+    lineOffset: 2,
+  },
+  {
+    id: "stallion-into-mischief",
+    name: "Into Mischief",
+    surface: "dirt",
+    distanceMin: 1200,
+    distanceMax: 2000,
+    temperamentRank: "A",
+    bottomRank: "B",
+    robustnessRank: "A",
+    performanceRank: "A",
+    stabilityRank: "A",
+    sireLine: "Storm Cat",
+    mareLine: "Leslie's Lady",
+    bloodRegion: "america",
+    lineOffset: 3,
+  },
+  {
+    id: "stallion-gun-runner",
+    name: "Gun Runner",
+    surface: "dirt",
+    distanceMin: 1600,
+    distanceMax: 2400,
+    temperamentRank: "B",
+    bottomRank: "A",
+    robustnessRank: "A",
+    performanceRank: "A",
+    stabilityRank: "B",
+    sireLine: "Fappiano",
+    mareLine: "Quiet Giant",
+    bloodRegion: "america",
+    lineOffset: 4,
+  },
+  {
+    id: "stallion-wootton-bassett",
+    name: "Wootton Bassett",
+    surface: "turf",
+    distanceMin: 1400,
+    distanceMax: 2400,
+    temperamentRank: "B",
+    bottomRank: "B",
+    robustnessRank: "B",
+    performanceRank: "A",
+    stabilityRank: "B",
+    sireLine: "Iffraaj",
+    mareLine: "Balladonia",
+    bloodRegion: "europe",
+    lineOffset: 5,
+  },
+  {
+    id: "stallion-flightline",
+    name: "Flightline",
+    surface: "dirt",
+    distanceMin: 1200,
+    distanceMax: 2000,
+    temperamentRank: "A",
+    bottomRank: "A",
+    robustnessRank: "B",
+    performanceRank: "A",
+    stabilityRank: "C",
+    sireLine: "Tapit",
+    mareLine: "Feathered",
+    bloodRegion: "america",
+    lineOffset: 6,
+  },
+  {
+    id: "stallion-tiz-the-law",
+    name: "Tiz the Law",
+    surface: "dirt",
+    distanceMin: 1600,
+    distanceMax: 2400,
+    temperamentRank: "B",
+    bottomRank: "B",
+    robustnessRank: "B",
+    performanceRank: "B",
+    stabilityRank: "B",
+    sireLine: "Relaunch",
+    mareLine: "Tizfiz",
+    bloodRegion: "america",
+    lineOffset: 7,
+  },
+];
+
+const BROODMARE_PROFILES: BroodmareProfile[] = [
+  ["broodmare-almond-eye", "アーモンドアイ", "A", "A", "turf", "Kingmambo", "Fusaichi Pandora", "japan", 0],
+  ["broodmare-gentildonna", "ジェンティルドンナ", "A", "A", "turf", "Deep Impact", "Donna Blini", "japan", 1],
+  ["broodmare-buena-vista", "ブエナビスタ", "A", "A", "turf", "Roberto", "Biwa Heidi", "japan", 2],
+  ["broodmare-vodka", "ウオッカ", "A", "B", "turf", "Roberto", "Tanino Sister", "japan", 3],
+  ["broodmare-daiwa-scarlet", "ダイワスカーレット", "A", "A", "turf", "Sunday Silence", "Scarlet Bouquet", "japan", 4],
+  ["broodmare-lis-gracieux", "リスグラシュー", "B", "A", "turf", "Heart's Cry", "Liliside", "japan", 5],
+  ["broodmare-chrono-genesis", "クロノジェネシス", "B", "A", "turf", "Northern Dancer", "Chronologist", "japan", 6],
+  ["broodmare-loves-only-you", "ラヴズオンリーユー", "A", "B", "turf", "Deep Impact", "Monevassia", "japan", 7],
+  ["broodmare-gran-alegria", "グランアレグリア", "A", "B", "turf", "Deep Impact", "Tapitsfly", "japan", 8],
+  ["broodmare-daring-tact", "デアリングタクト", "A", "A", "turf", "Roberto", "Daring Bird", "japan", 9],
+  ["broodmare-stars-on-earth", "スターズオンアース", "A", "B", "turf", "Kingmambo", "Southern Stars", "japan", 10],
+  ["broodmare-liberty-island", "リバティアイランド", "A", "B", "turf", "Deep Impact", "Yankee Rose", "japan", 11],
+  ["broodmare-sodashi", "ソダシ", "B", "B", "versatile", "Deputy Minister", "Buchiko", "japan", 0],
+  ["broodmare-songline", "ソングライン", "A", "C", "turf", "Deep Impact", "Luminous Parade", "japan", 1],
+  ["broodmare-stunning-rose", "スタニングローズ", "B", "B", "turf", "Kingmambo", "Rosa Blanca", "japan", 2],
+  ["broodmare-namur", "ナミュール", "A", "B", "turf", "Roberto", "Sambre et Meuse", "japan", 3],
+  ["broodmare-maria-light", "マリアライト", "B", "A", "turf", "Deep Impact", "Chrysoprase", "japan", 4],
+  ["broodmare-shonan-pandora", "ショウナンパンドラ", "B", "B", "turf", "Deep Impact", "Cutie Gold", "japan", 5],
+  ["broodmare-vilshina", "ヴィルシーナ", "B", "B", "turf", "Deep Impact", "Halwa Sweet", "japan", 6],
+  ["broodmare-vivlos", "ヴィブロス", "A", "B", "turf", "Deep Impact", "Halwa Sweet", "japan", 7],
+  ["broodmare-normcore", "ノームコア", "B", "B", "turf", "Northern Dancer", "Chronologist", "japan", 8],
+  ["broodmare-lei-papale", "レイパパレ", "A", "C", "turf", "Deep Impact", "Shells Lei", "japan", 9],
+  ["broodmare-meikei-yell", "メイケイエール", "A", "C", "turf", "Northern Dancer", "Shiroinger", "japan", 10],
+  ["broodmare-resistencia", "レシステンシア", "A", "C", "turf", "Danzig", "Malacostumbrada", "japan", 11],
+  ["broodmare-fine-rouge", "ファインルージュ", "B", "B", "turf", "Deep Impact", "Powerful Ruler", "japan", 0],
+  ["broodmare-akaitorino-musume", "アカイトリノムスメ", "A", "B", "turf", "Deep Impact", "Apapane", "japan", 1],
+  ["broodmare-uberleben", "ユーバーレーベン", "B", "A", "turf", "Stay Gold", "Meine Theresia", "japan", 2],
+  ["broodmare-win-marilyn", "ウインマリリン", "B", "B", "turf", "Roberto", "Cosmo Cielo", "japan", 3],
+  ["broodmare-terzetto", "テルツェット", "B", "C", "turf", "Deep Impact", "Raddolcendo", "japan", 4],
+  ["broodmare-geraldina", "ジェラルディーナ", "B", "B", "turf", "Roberto", "Gentildonna", "japan", 5],
+  ["broodmare-treve", "Treve", "A", "A", "turf", "Motivator", "Trevise", "europe", 6],
+  ["broodmare-beholder", "Beholder", "A", "B", "dirt", "Henny Hughes", "Leslie's Lady", "america", 7],
+  ["broodmare-winx", "Winx", "A", "A", "turf", "Street Cry", "Vegas Showgirl", "australia", 8],
+  ["broodmare-tepin", "Tepin", "A", "B", "turf", "Bernstein", "Life Happened", "america", 9],
+  ["broodmare-lady-eli", "Lady Eli", "A", "B", "turf", "Divine Park", "Sacre Coeur", "america", 10],
+  ["broodmare-stellar-wind", "Stellar Wind", "B", "B", "dirt", "Curlin", "Evening Star", "america", 11],
+  ["broodmare-songbird", "Songbird", "A", "B", "dirt", "Medaglia d'Oro", "Ivanavinalot", "america", 0],
+  ["broodmare-minding", "Minding", "A", "B", "turf", "Sadler's Wells", "Lillie Langtry", "europe", 1],
+  ["broodmare-enable", "Enable", "A", "A", "turf", "Sadler's Wells", "Concentric", "europe", 2],
+  ["broodmare-alpha-centauri", "Alpha Centauri", "A", "B", "turf", "Northern Dancer", "Alpha Lupi", "europe", 3],
+  ["broodmare-laurens", "Laurens", "B", "B", "turf", "Siyouni", "Recambe", "europe", 4],
+  ["broodmare-monomoy-girl", "Monomoy Girl", "A", "B", "dirt", "Tapit", "Drumette", "america", 5],
+  ["broodmare-tarnawa", "Tarnawa", "B", "A", "turf", "Cape Cross", "Tarana", "europe", 6],
+  ["broodmare-love", "Love", "A", "A", "turf", "Sadler's Wells", "Pikaboo", "europe", 7],
+  ["broodmare-swiss-skydiver", "Swiss Skydiver", "B", "B", "dirt", "Daredevil", "Expo Gold", "america", 8],
+  ["broodmare-inspiral", "Inspiral", "A", "B", "turf", "Frankel", "Starscope", "europe", 9],
+  ["broodmare-emily-upjohn", "Emily Upjohn", "B", "A", "turf", "Sea The Stars", "Hidden Brief", "europe", 10],
+  ["broodmare-blue-rose-cen", "Blue Rose Cen", "A", "B", "turf", "Churchill", "Queen Blossom", "europe", 11],
+].map(
+  ([
+    id,
+    name,
+    speedRank,
+    staminaRank,
+    surface,
+    sireLine,
+    mareLine,
+    bloodRegion,
+    lineOffset,
+  ]) => ({
+    id,
+    name,
+    speedRank,
+    staminaRank,
+    surface,
+    sireLine,
+    mareLine,
+    bloodRegion,
+    lineOffset,
+  }),
+) as BroodmareProfile[];
+
+export const defaultStallions: Stallion[] = STALLION_PROFILES.map(createStallion);
+export const defaultBroodmares: Broodmare[] = BROODMARE_PROFILES.map(createBroodmare);
