@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { evaluateBreeding, evaluatePedigree, generateProducedHorse } from "../src/domain/breeding.ts";
 import { SEED_PATTERN_COUNT } from "../src/domain/constants.ts";
 import { defaultBroodmares, defaultStallions } from "../src/domain/horses.ts";
-import { parseSaveDataJson } from "../src/domain/storage.ts";
+import {
+  createInitialSaveData,
+  loadFromLocalStorage,
+  parseSaveDataJson,
+  saveToLocalStorage,
+  serializeSaveData,
+} from "../src/domain/storage.ts";
 
 const excludedStallions = ["イクイノックス", "コントレイル", "ドゥラメンテ", "Galileo", "Dubawi", "Tiznow"];
 
@@ -69,6 +75,24 @@ assert.ok(outcrossFoal.abilities.constitution >= 32, "outcross should guarantee 
 
 assert.throws(() => parseSaveDataJson("{"), /JSON/, "invalid JSON should be rejected");
 assert.throws(() => parseSaveDataJson("{}"), /セーブデータ/, "malformed save data should be rejected");
+
+const localStorageStore = new Map();
+globalThis.localStorage = {
+  getItem: (key) => localStorageStore.get(key) ?? null,
+  setItem: (key, value) => localStorageStore.set(key, String(value)),
+  removeItem: (key) => localStorageStore.delete(key),
+  clear: () => localStorageStore.clear(),
+  key: (index) => Array.from(localStorageStore.keys())[index] ?? null,
+  get length() {
+    return localStorageStore.size;
+  },
+};
+const savedData = saveToLocalStorage({
+  ...createInitialSaveData("2026-05-09T00:00:00.000Z"),
+  producedHorses: [producedA],
+});
+assert.equal(loadFromLocalStorage()?.data.producedHorses.length, 1, "localStorage save should be restorable");
+assert.equal(parseSaveDataJson(serializeSaveData(savedData)).data.version, 1, "serialized JSON should be restorable");
 
 console.log("MVP verification passed");
 
