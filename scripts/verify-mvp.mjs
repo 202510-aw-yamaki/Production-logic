@@ -132,6 +132,64 @@ expectedBroodmares.forEach(([name, speedRank, staminaRank, surface], index) => {
   assert.equal(actual.surface, surface, `broodmare ${name} surface`);
 });
 
+const expectedBroodmareBloodlines = [
+  ["King Halo", "Blancherie", "japan"],
+  ["All American", "Condesaar", "australia"],
+  ["Smart Strike", "Stacelita", "mixed"],
+  ["Harbinger", "Land's Edge", "japan"],
+  ["King Kamehameha", "Happy Path", "japan"],
+  ["Manhattan Cafe", "Fortepiano", "japan"],
+  ["Congrats", "Sequoia Queen", "america"],
+  ["Harbinger", "Air Magdalene", "japan"],
+  ["Durandal", "ジョイアサーティン", "japan"],
+  ["Tizway", "Malibu Pier", "america"],
+  ["Deep Impact", "Musical Way", "japan"],
+  ["Daiwa Major", "Vite Marcher", "japan"],
+  ["Symboli Kris S", "Luminous Point", "japan"],
+  ["Danehill Dancer", "Listen", "japan"],
+  ["Wilburn", "Speed Wagon", "america"],
+  ["King Kamehameha", "Shirayukihime", "japan"],
+  ["King Kamehameha", "Daring Heart", "japan"],
+  ["Congrats", "Darling My Darling", "america"],
+  ["Neo Universe", "Happy Request", "japan"],
+  ["Gold Allure", "La Verita", "japan"],
+  ["Uncle Mo", "Deputy's Delight", "america"],
+  ["King Kamehameha", "California Nectar", "japan"],
+  ["King Kamehameha", "Emmy's Smile", "japan"],
+  ["Orfevre", "Malpensa", "japan"],
+  ["Zoffany", "Serisia", "europe"],
+  ["Harbinger", "Land's Edge", "japan"],
+  ["Rulership", "Land's Edge", "japan"],
+  ["Kurofune", "Adelheid", "japan"],
+  ["Heart's Cry", "Loretto Chapel", "japan"],
+  ["Harbinger", "Yukichan", "japan"],
+  ["Galileo", "Green Room", "europe"],
+  ["Galileo", "Halfway To Heaven", "europe"],
+  ["New Approach", "Epitome", "europe"],
+  ["Montjeu", "Millionaia", "europe"],
+  ["New Approach", "Reem Three", "europe"],
+  ["Street Cry", "Folk Opera", "europe"],
+  ["Per Incanto", "Royal Rhythm", "australia"],
+  ["Tavistock", "Upstage", "australia"],
+  ["Shamardal", "Percussive", "australia"],
+  ["Big Brown", "Boat's Ghost", "america"],
+  ["Malibu Moon", "Darling My Darling", "america"],
+  ["Stay Thirsty", "Nonna Mia", "america"],
+  ["Blame", "Queens Plaza", "america"],
+  ["Uncle Mo", "Pacific Sky", "america"],
+  ["Uncle Mo", "Peppy Rafaela", "america"],
+  ["Colonel John", "Naughty Little Nun", "america"],
+  ["Holy Roman Emperor", "Delicate Charm", "europe"],
+  ["Jeremy", "Mark Of An Angel", "europe"],
+];
+
+expectedBroodmareBloodlines.forEach(([sireLine, mareLine, bloodRegion], index) => {
+  const actual = defaultBroodmares[index];
+  assert.equal(actual.sireLine, sireLine, `broodmare ${index + 1} sireLine`);
+  assert.equal(actual.mareLine, mareLine, `broodmare ${index + 1} mareLine`);
+  assert.equal(actual.bloodRegion, bloodRegion, `broodmare ${index + 1} bloodRegion`);
+});
+
 for (const horse of [...defaultStallions, ...defaultBroodmares]) {
   assert.equal(horse.pedigree.generations.length, 5, `${horse.name} should have five generations`);
   horse.pedigree.generations.forEach((generation, index) => {
