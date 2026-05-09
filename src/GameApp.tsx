@@ -746,6 +746,11 @@ function AbilityTable({ horse }: { horse: ProducedHorse }) {
                 <td>{horse.ranks[key]}</td>
               </tr>
             ))}
+            <tr>
+              <td>馬場適性</td>
+              <td>{SURFACE_LABELS[horse.surface]}</td>
+              <td>-</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -765,6 +770,12 @@ function AbilityRankStrip({ horse }: { horse: ProducedHorse }) {
           </dd>
         </div>
       ))}
+      <div>
+        <dt>馬場適性</dt>
+        <dd>
+          <strong>{SURFACE_LABELS[horse.surface]}</strong>
+        </dd>
+      </div>
     </dl>
   );
 }
