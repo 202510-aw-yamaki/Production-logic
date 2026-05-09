@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  calculateConstitutionPenalty,
   evaluateBreeding,
   evaluatePedigree,
   generateProducedHorse,
@@ -209,6 +210,9 @@ assert.ok(
   "3x3 should exceed 18.75",
 );
 assert.equal(evaluatePedigree(makeOutcrossPedigree()).hasOutcross, true, "outcross should be detected");
+assert.equal(calculateConstitutionPenalty(0), 0, "outcross should not penalize constitution");
+assert.equal(calculateConstitutionPenalty(18.75), 4, "3x4 constitution penalty should be light");
+assert.equal(calculateConstitutionPenalty(21.875), 22, "21.875% constitution penalty should keep current balance");
 
 const sire = defaultStallions[0];
 const dam = defaultBroodmares[0];

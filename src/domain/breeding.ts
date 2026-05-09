@@ -212,7 +212,7 @@ function generateAbilityScores(
   const distanceStamina = distanceToRankMidpoint(sire.distanceMax);
   const distanceSpeed = distanceToSpeedMidpoint(sire.distanceMin, sire.distanceMax);
   const regionFear = fearAdjustment(sire.bloodRegion) + fearAdjustment(dam.bloodRegion);
-  const inbreedingPenalty = constitutionPenalty(evaluation.strongestInbreedingPercent);
+  const inbreedingPenalty = calculateConstitutionPenalty(evaluation.strongestInbreedingPercent);
 
   const raw: AbilityScores = {
     speed: sampleAbility(
@@ -298,12 +298,12 @@ function applyMinimums(scores: AbilityScores, minimum: number): AbilityScores {
   };
 }
 
-function constitutionPenalty(strongestInbreedingPercent: number): number {
+export function calculateConstitutionPenalty(strongestInbreedingPercent: number): number {
   if (strongestInbreedingPercent <= 0) return 0;
   if (strongestInbreedingPercent > INBREEDING_WARNING_THRESHOLD) {
     return 20 + Math.round((strongestInbreedingPercent - INBREEDING_WARNING_THRESHOLD) * 0.7);
   }
-  return 8 + Math.round(strongestInbreedingPercent * 0.25);
+  return Math.round(strongestInbreedingPercent * 0.2);
 }
 
 function inheritSurface(sireSurface: Surface, damSurface: Surface, random: () => number): Surface {
