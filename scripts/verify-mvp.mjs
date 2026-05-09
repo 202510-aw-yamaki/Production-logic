@@ -8,6 +8,7 @@ import {
 } from "../src/domain/breeding.ts";
 import { SEED_PATTERN_COUNT } from "../src/domain/constants.ts";
 import { defaultBroodmares, defaultStallions } from "../src/domain/horses.ts";
+import { REAL_PEDIGREE_SOURCE_URLS } from "../src/domain/realPedigrees.ts";
 import {
   createInitialSaveData,
   loadFromLocalStorage,
@@ -202,6 +203,20 @@ for (const horse of [...defaultStallions, ...defaultBroodmares]) {
     assert.equal(generation.length, 2 ** (index + 1), `${horse.name} generation ${index + 1} size`);
   });
 }
+
+assert.equal(Object.keys(REAL_PEDIGREE_SOURCE_URLS).length, 72, "all MVP horses should have real pedigree sources");
+
+const kitasanBlack = defaultStallions.find((horse) => horse.id === "stallion-kitasan-black");
+assert.ok(kitasanBlack, "Kitasan Black should exist");
+assert.equal(kitasanBlack.pedigree.generations[0][0].name, "Black Tide", "Kitasan Black sire");
+assert.equal(kitasanBlack.pedigree.generations[0][1].name, "Sugar Heart", "Kitasan Black dam");
+assert.equal(kitasanBlack.pedigree.generations[1][0].name, "Sunday Silence", "Kitasan Black sire sire");
+assert.equal(kitasanBlack.pedigree.generations[1][1].name, "Wind in Her Hair", "Kitasan Black sire dam");
+
+const southernStars = defaultBroodmares.find((horse) => horse.id === "broodmare-buena-vista");
+assert.ok(southernStars, "Southern Stars should exist");
+assert.equal(southernStars.pedigree.generations[0][0].name, "Smart Strike", "Southern Stars sire");
+assert.equal(southernStars.pedigree.generations[0][1].name, "Stacelita", "Southern Stars dam");
 
 const threeByFour = makePedigreeWithCross(2, 3);
 assert.equal(evaluatePedigree(threeByFour).inbreeding[0].totalBloodPercent, 18.75, "3x4 should be 18.75");

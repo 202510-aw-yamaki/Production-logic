@@ -7,6 +7,7 @@ import type {
   Stallion,
   Surface,
 } from "./types.ts";
+import { REAL_PEDIGREES } from "./realPedigrees.ts";
 
 const GLOBAL_SIRE_LINES = [
   "Northern Dancer",
@@ -153,7 +154,7 @@ function createStallion(profile: StallionProfile): Stallion {
     sireLine: profile.sireLine,
     mareLine: profile.mareLine,
     bloodRegion: profile.bloodRegion,
-    pedigree: buildPedigree(profile),
+    pedigree: REAL_PEDIGREES[profile.id] ?? buildPedigree(profile),
   };
 }
 
@@ -168,7 +169,7 @@ function createBroodmare(profile: BroodmareProfile): Broodmare {
     sireLine: profile.sireLine,
     mareLine: profile.mareLine,
     bloodRegion: profile.bloodRegion,
-    pedigree: buildPedigree(profile),
+    pedigree: REAL_PEDIGREES[profile.id] ?? buildPedigree(profile),
   };
 }
 
