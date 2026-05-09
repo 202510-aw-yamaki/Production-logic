@@ -337,14 +337,67 @@ th {
 }
 
 .pedigree-node strong,
-.pedigree-node span {
+.pedigree-line,
+.factor-none {
   display: block;
   overflow-wrap: anywhere;
 }
 
-.pedigree-node span {
+.pedigree-line,
+.factor-none {
   color: #657063;
   font-size: 12px;
+}
+
+.factor-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.factor-chip {
+  border: 1px solid #cbd5c0;
+  border-radius: 999px;
+  color: #253128;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.factor-chip[data-factor="speed"],
+.factor-chip[data-factor="acceleration"] {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #8a1f1f;
+}
+
+.factor-chip[data-factor="stamina"],
+.factor-chip[data-factor="sustain"] {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #22543d;
+}
+
+.factor-chip[data-factor="power"],
+.factor-chip[data-factor="guts"] {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #704300;
+}
+
+.factor-chip[data-factor="fear"] {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  color: #1e3a8a;
+}
+
+.factor-none {
+  margin-top: 4px;
+  opacity: 0.62;
 }
 
 .result-summary {

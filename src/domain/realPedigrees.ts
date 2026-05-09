@@ -1,3 +1,4 @@
+import { getAncestorFactors } from "./ancestorFactors.ts";
 import type { FiveGenerationPedigree, PedigreeNode } from "./types.ts";
 
 type RawPedigreeNode = [id: string, name: string, sex: "M" | "F"];
@@ -23278,11 +23279,13 @@ export const REAL_PEDIGREES: Record<string, FiveGenerationPedigree> = Object.fro
 );
 
 function toPedigreeNode([id, name, sex]: RawPedigreeNode): PedigreeNode {
+  const factors = getAncestorFactors(name);
   return {
     id,
     name,
     sireLine: name,
     mareLine: sex === "F" ? name : undefined,
     bloodRegion: "mixed",
+    ...(factors.length > 0 ? { factors } : {}),
   };
 }

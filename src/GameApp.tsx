@@ -27,6 +27,7 @@ import type {
   BreedingEvaluation,
   Broodmare,
   FiveGenerationPedigree,
+  InbreedingFactor,
   ProducedHorse,
   SaveData,
   Stallion,
@@ -46,6 +47,16 @@ const abilityLabels: Record<keyof AbilityScores, string> = {
   fear: "恐怖心",
   constitution: "体質",
   health: "健康",
+};
+
+const factorLabels: Record<InbreedingFactor, string> = {
+  speed: "スピード",
+  stamina: "スタミナ",
+  power: "パワー",
+  guts: "根性",
+  acceleration: "瞬発",
+  sustain: "持続力",
+  fear: "恐怖心",
 };
 
 const viewLabels: Record<View, string> = {
@@ -819,13 +830,30 @@ function PedigreeTable({ pedigree }: { pedigree: FiveGenerationPedigree }) {
             {generation.map((node, nodeIndex) => (
               <div className="pedigree-node" key={`${node.id}-${index}-${nodeIndex}`}>
                 <strong>{node.name}</strong>
-                <span>{node.sireLine}</span>
+                {node.sireLine !== node.name ? <span className="pedigree-line">{node.sireLine}</span> : null}
+                <FactorList factors={node.factors} />
               </div>
             ))}
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+function FactorList({ factors }: { factors?: InbreedingFactor[] }) {
+  if (!factors || factors.length === 0) {
+    return <span className="factor-none">因子なし</span>;
+  }
+
+  return (
+    <div className="factor-list" aria-label="因子">
+      {factors.map((factor) => (
+        <span className="factor-chip" data-factor={factor} key={factor}>
+          {factorLabels[factor]}
+        </span>
+      ))}
+    </div>
   );
 }
 

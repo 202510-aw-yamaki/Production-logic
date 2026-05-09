@@ -212,6 +212,12 @@ assert.equal(kitasanBlack.pedigree.generations[0][0].name, "Black Tide", "Kitasa
 assert.equal(kitasanBlack.pedigree.generations[0][1].name, "Sugar Heart", "Kitasan Black dam");
 assert.equal(kitasanBlack.pedigree.generations[1][0].name, "Sunday Silence", "Kitasan Black sire sire");
 assert.equal(kitasanBlack.pedigree.generations[1][1].name, "Wind in Her Hair", "Kitasan Black sire dam");
+assert.deepEqual(kitasanBlack.pedigree.generations[0][0].factors ?? [], [], "Black Tide should have no factors");
+assert.deepEqual(
+  kitasanBlack.pedigree.generations[1][0].factors,
+  ["speed", "guts", "acceleration"],
+  "Sunday Silence factors",
+);
 
 const southernStars = defaultBroodmares.find((horse) => horse.id === "broodmare-buena-vista");
 assert.ok(southernStars, "Southern Stars should exist");

@@ -4,6 +4,14 @@ export type Sex = "male" | "female";
 export type BloodRegion = "japan" | "europe" | "america" | "australia" | "mixed";
 export type HorseSource = "default" | "homebred";
 export type BreedingGrade = "normal" | "good" | "very_good";
+export type InbreedingFactor =
+  | "speed"
+  | "stamina"
+  | "power"
+  | "guts"
+  | "acceleration"
+  | "sustain"
+  | "fear";
 
 export interface AbilityScores {
   speed: number;
@@ -41,6 +49,7 @@ export interface PedigreeNode {
   sireLine: string;
   mareLine?: string;
   bloodRegion?: BloodRegion;
+  factors?: InbreedingFactor[];
 }
 
 export interface FiveGenerationPedigree {
