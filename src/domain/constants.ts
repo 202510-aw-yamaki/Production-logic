@@ -1,4 +1,4 @@
-import type { AbilityKey, AbilityRanks, AbilityScores, RaceRecord, Rank } from "./types";
+import type { AbilityKey, AbilityRanks, AbilityScores, RaceRecord, Rank } from "./types.ts";
 
 export const SEED_PATTERN_COUNT = 8192;
 export const SAVE_DATA_VERSION = 1;

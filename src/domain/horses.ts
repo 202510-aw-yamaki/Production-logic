@@ -6,7 +6,7 @@ import type {
   Rank,
   Stallion,
   Surface,
-} from "./types";
+} from "./types.ts";
 
 const GLOBAL_SIRE_LINES = [
   "Northern Dancer",
