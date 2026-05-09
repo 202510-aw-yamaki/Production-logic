@@ -21,6 +21,117 @@ assert.deepEqual(
   "excluded stallion names should not be default stallions",
 );
 
+const expectedStallions = [
+  ["キタサンブラック", 1800, 3200, "B", "A", "B", "A", "B", "turf"],
+  ["キズナ", 1800, 2600, "B", "B", "A", "B", "A", "versatile"],
+  ["ミッキーアイル", 1000, 1800, "C", "B", "B", "B", "B", "turf"],
+  ["リアルスティール", 1400, 2400, "B", "B", "B", "A", "C", "versatile"],
+  ["エピファネイア", 1600, 3000, "C", "A", "B", "A", "B", "turf"],
+  ["サートゥルナーリア", 1400, 2400, "B", "B", "B", "B", "B", "turf"],
+  ["ロードカナロア", 1000, 1600, "A", "A", "A", "A", "A", "turf"],
+  ["ゴールドシップ", 2200, 3200, "D", "A", "A", "B", "C", "turf"],
+  ["モーリス", 1400, 2000, "B", "A", "B", "B", "B", "turf"],
+  ["オルフェーヴル", 1600, 3000, "C", "A", "B", "A", "C", "versatile"],
+  ["スワーヴリチャード", 1600, 2600, "B", "B", "B", "A", "B", "turf"],
+  ["シルバーステート", 1200, 2200, "B", "B", "C", "B", "C", "turf"],
+  ["ドレフォン", 1200, 2000, "B", "B", "B", "B", "A", "versatile"],
+  ["ルヴァンスレーヴ", 1600, 2100, "B", "B", "C", "C", "B", "dirt"],
+  ["ナダル", 1200, 2000, "B", "B", "C", "B", "C", "dirt"],
+  ["アドマイヤマーズ", 1400, 1800, "B", "B", "B", "B", "B", "turf"],
+  ["Frankel", 1200, 2000, "B", "A", "A", "A", "A", "turf"],
+  ["Too Darn Hot", 1400, 2200, "B", "B", "B", "A", "B", "turf"],
+  ["Sea The Stars", 1600, 2400, "A", "A", "B", "A", "A", "turf"],
+  ["Into Mischief", 1000, 2000, "B", "A", "A", "A", "A", "dirt"],
+  ["Gun Runner", 1400, 2200, "A", "A", "A", "A", "A", "dirt"],
+  ["Wootton Bassett", 1400, 2400, "B", "A", "B", "A", "A", "turf"],
+  ["Flightline", 1200, 2000, "B", "A", "B", "A", "A", "dirt"],
+  ["Tiz the Law", 1400, 2400, "B", "B", "B", "B", "B", "dirt"],
+];
+
+expectedStallions.forEach(
+  ([
+    name,
+    distanceMin,
+    distanceMax,
+    temperamentRank,
+    bottomRank,
+    robustnessRank,
+    performanceRank,
+    stabilityRank,
+    surface,
+  ], index) => {
+    const actual = defaultStallions[index];
+    assert.equal(actual.name, name, `stallion ${index + 1} name`);
+    assert.equal(actual.distanceMin, distanceMin, `stallion ${name} distanceMin`);
+    assert.equal(actual.distanceMax, distanceMax, `stallion ${name} distanceMax`);
+    assert.equal(actual.temperamentRank, temperamentRank, `stallion ${name} temperament`);
+    assert.equal(actual.bottomRank, bottomRank, `stallion ${name} bottom`);
+    assert.equal(actual.robustnessRank, robustnessRank, `stallion ${name} robustness`);
+    assert.equal(actual.performanceRank, performanceRank, `stallion ${name} performance`);
+    assert.equal(actual.stabilityRank, stabilityRank, `stallion ${name} stability`);
+    assert.equal(actual.surface, surface, `stallion ${name} surface`);
+  },
+);
+
+const expectedBroodmares = [
+  ["シャトーブランシュ", "A", "A", "turf"],
+  ["ヤンキーローズ", "A", "B", "turf"],
+  ["サザンスターズ", "A", "B", "turf"],
+  ["ロカ", "A", "B", "turf"],
+  ["チェッキーノ", "A", "B", "turf"],
+  ["パルティトゥーラ", "B", "A", "turf"],
+  ["トップデサイル", "B", "B", "versatile"],
+  ["エアルーティーン", "A", "B", "turf"],
+  ["オートクレール", "B", "A", "turf"],
+  ["コーステッド", "A", "B", "turf"],
+  ["インナーアージ", "B", "A", "turf"],
+  ["サンブルエミューズ", "A", "B", "turf"],
+  ["ルミナスパレード", "A", "B", "turf"],
+  ["アスコルティ", "A", "C", "turf"],
+  ["インディアマントゥアナ", "A", "B", "turf"],
+  ["ブチコ", "A", "C", "versatile"],
+  ["デアリングバード", "A", "B", "turf"],
+  ["フォエヴァーダーリング", "A", "B", "dirt"],
+  ["アムールポエジー", "B", "B", "dirt"],
+  ["ネフェルティティ", "B", "B", "dirt"],
+  ["チェストケローズ", "A", "B", "dirt"],
+  ["クイーンパイレーツ", "B", "B", "dirt"],
+  ["エミーズプライド", "B", "B", "dirt"],
+  ["マルケッサ", "B", "B", "versatile"],
+  ["サイマー", "B", "B", "versatile"],
+  ["エッジースタイル", "B", "A", "turf"],
+  ["ブルークランズ", "A", "B", "turf"],
+  ["ロッテンマイヤー", "A", "B", "turf"],
+  ["ミュージアムヒル", "A", "B", "turf"],
+  ["シロインジャー", "A", "C", "turf"],
+  ["Together Forever", "A", "B", "turf"],
+  ["Rhododendron", "A", "B", "turf"],
+  ["Modern Ideals", "A", "B", "turf"],
+  ["Modern Eagle", "A", "B", "turf"],
+  ["Rosaline", "A", "B", "turf"],
+  ["Folk Melody", "A", "B", "turf"],
+  ["Missy Moo", "A", "C", "turf"],
+  ["Lilahjay", "A", "B", "turf"],
+  ["Berimbau", "A", "C", "turf"],
+  ["Puca", "A", "B", "dirt"],
+  ["Heavenly Love", "B", "B", "dirt"],
+  ["Nonna Bella", "A", "B", "dirt"],
+  ["Queen Caroline", "A", "B", "versatile"],
+  ["Sataves", "B", "B", "dirt"],
+  ["Mopotism", "A", "B", "dirt"],
+  ["Ma’am", "B", "B", "dirt"],
+  ["Too Precious", "A", "B", "turf"],
+  ["Queen Blossom", "A", "B", "turf"],
+];
+
+expectedBroodmares.forEach(([name, speedRank, staminaRank, surface], index) => {
+  const actual = defaultBroodmares[index];
+  assert.equal(actual.name, name, `broodmare ${index + 1} name`);
+  assert.equal(actual.speedRank, speedRank, `broodmare ${name} speed`);
+  assert.equal(actual.staminaRank, staminaRank, `broodmare ${name} stamina`);
+  assert.equal(actual.surface, surface, `broodmare ${name} surface`);
+});
+
 for (const horse of [...defaultStallions, ...defaultBroodmares]) {
   assert.equal(horse.pedigree.generations.length, 5, `${horse.name} should have five generations`);
   horse.pedigree.generations.forEach((generation, index) => {
