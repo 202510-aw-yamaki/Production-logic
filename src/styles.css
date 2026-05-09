@@ -362,6 +362,18 @@ th {
   padding: 12px;
 }
 
+.ability-panel {
+  margin-bottom: 20px;
+}
+
+.ability-panel h3 {
+  margin-bottom: 10px;
+}
+
+.ability-table table {
+  min-width: 420px;
+}
+
 .horse-list {
   display: grid;
   gap: 10px;
@@ -378,6 +390,11 @@ th {
   padding: 14px;
 }
 
+.horse-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
 .horse-item h3 {
   margin-bottom: 6px;
 }
@@ -385,6 +402,42 @@ th {
 .horse-item p {
   color: #4b5a4c;
   margin-bottom: 4px;
+}
+
+.ability-strip {
+  display: grid;
+  gap: 8px 14px;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  margin: 12px 0 0;
+}
+
+.ability-strip div {
+  border-top: 1px solid #d8ded2;
+  padding-top: 6px;
+}
+
+.ability-strip dt {
+  color: #657063;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ability-strip dd {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  margin: 2px 0 0;
+}
+
+.ability-strip strong {
+  color: #17211c;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ability-strip span {
+  color: #4b5a4c;
+  font-size: 12px;
 }
 
 .empty-state {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  ABILITY_KEYS,
   BREEDING_GRADE_LABELS,
   INBREEDING_WARNING_THRESHOLD,
   MAX_HOMEBRED_BROODMARES,
@@ -446,7 +447,7 @@ export default function GameApp() {
             <div className="horse-list">
               {saveData.producedHorses.map((horse) => (
                 <article className="horse-item" key={horse.id}>
-                  <div>
+                  <div className="horse-item-main">
                     <h3>{horse.name}</h3>
                     <p>
                       {SEX_LABELS[horse.sex]} / 父 {findHorseName(horse.sireId)} / 母 {findHorseName(horse.damId)}
@@ -455,6 +456,7 @@ export default function GameApp() {
                     {horse.retiredAs && (
                       <p>{horse.retiredAs === "stallion" ? "自家生産種牡馬" : "自家生産繁殖牝馬"}</p>
                     )}
+                    <AbilityRankStrip horse={horse} />
                   </div>
                   <div className="item-actions">
                     {horse.sex === "male" && (
@@ -639,9 +641,54 @@ function ProducedResult({
         <p>配合評価 {BREEDING_GRADE_LABELS[evaluation.grade]}</p>
         <p>{buildResultComment(evaluation)}</p>
       </div>
+      <AbilityTable horse={horse} />
       <PedigreeTable pedigree={horse.pedigree} />
       {showDebug && <AbilityDebug horse={horse} />}
     </section>
+  );
+}
+
+function AbilityTable({ horse }: { horse: ProducedHorse }) {
+  return (
+    <section className="ability-panel">
+      <h3>能力</h3>
+      <div className="table-wrap ability-table">
+        <table>
+          <thead>
+            <tr>
+              <th>能力</th>
+              <th>値</th>
+              <th>ランク</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ABILITY_KEYS.map((key) => (
+              <tr key={key}>
+                <td>{abilityLabels[key]}</td>
+                <td>{horse.abilities[key]}</td>
+                <td>{horse.ranks[key]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function AbilityRankStrip({ horse }: { horse: ProducedHorse }) {
+  return (
+    <dl className="ability-strip">
+      {ABILITY_KEYS.map((key) => (
+        <div key={key}>
+          <dt>{abilityLabels[key]}</dt>
+          <dd>
+            <strong>{horse.ranks[key]}</strong>
+            <span>{horse.abilities[key]}</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
