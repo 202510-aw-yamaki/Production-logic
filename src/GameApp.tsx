@@ -765,8 +765,8 @@ function AbilityRankStrip({ horse }: { horse: ProducedHorse }) {
         <div key={key}>
           <dt>{abilityLabels[key]}</dt>
           <dd>
-            <strong>{horse.ranks[key]}</strong>
-            <span>{horse.abilities[key]}</span>
+            <strong>{horse.abilities[key]}</strong>
+            <span>{horse.ranks[key]}</span>
           </dd>
         </div>
       ))}
