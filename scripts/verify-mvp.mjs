@@ -228,6 +228,9 @@ assert.deepEqual(
 for (const horse of [...defaultStallions, ...defaultBroodmares]) {
   horse.pedigree.generations.flat().forEach((node) => {
     assert.ok((node.factors ?? []).length <= 3, `${node.name} should have 0 to 3 factors`);
+    assert.ok(["male", "female"].includes(node.sex), `${node.name} should keep sex`);
+    assert.ok(node.sireLineGroup, `${node.name} should keep middle sire-line group`);
+    assert.ok(node.familyNumber?.endsWith("号族"), `${node.name} should keep normalized familyNumber`);
   });
   assert.ok(horse.myostatin, `${horse.name} should keep myostatin profile`);
   assert.ok(
