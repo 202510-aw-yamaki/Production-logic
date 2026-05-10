@@ -557,8 +557,8 @@ export default function GameApp() {
           </section>
           <section className="evaluation-panel">
             <EvaluationView evaluation={currentEvaluation} />
-            <PedigreeTable pedigree={currentPedigree} />
           </section>
+          <PedigreeTable pedigree={currentPedigree} />
         </main>
       )}
 
