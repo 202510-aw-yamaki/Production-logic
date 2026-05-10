@@ -4,6 +4,8 @@ export type Sex = "male" | "female";
 export type BloodRegion = "japan" | "europe" | "america" | "australia" | "mixed";
 export type HorseSource = "default" | "homebred";
 export type BreedingGrade = "normal" | "good" | "very_good";
+export type MyostatinGenotype = "CC" | "CT" | "TT";
+export type SireLineTendency = "acceleration" | "sustain" | "balanced";
 export type InbreedingFactor =
   | "speed"
   | "stamina"
@@ -27,6 +29,7 @@ export interface AbilityScores {
 }
 
 export type AbilityKey = keyof AbilityScores;
+export type AbilityDeltaMap = Partial<Record<AbilityKey, number>>;
 
 export interface AbilityRanks {
   speed: Rank;
@@ -50,11 +53,42 @@ export interface PedigreeNode {
   mareLine?: string;
   bloodRegion?: BloodRegion;
   factors?: InbreedingFactor[];
+  myostatin?: MyostatinProfile;
 }
 
 export interface FiveGenerationPedigree {
   rootHorseId: string;
   generations: PedigreeNode[][];
+}
+
+export type MyostatinProbabilities = Record<MyostatinGenotype, number>;
+
+export interface MyostatinProfile {
+  genotype?: MyostatinGenotype;
+  probabilities: MyostatinProbabilities;
+}
+
+export interface SireLineTendencyReport {
+  sireLine: string;
+  tendency: SireLineTendency;
+  label: string;
+  abilityDeltas: AbilityDeltaMap;
+}
+
+export interface FactorEffectReport {
+  source: "inbreeding" | "outcross";
+  factor: InbreedingFactor;
+  ancestorName?: string;
+  positions?: string[];
+  bloodPercent: number;
+  multiplier: number;
+  abilityDeltas: AbilityDeltaMap;
+}
+
+export interface AbilityInfluence {
+  source: "inbreeding" | "outcross" | "sire_line" | "myostatin" | "constitution";
+  label: string;
+  abilityDeltas: AbilityDeltaMap;
 }
 
 export interface RaceRecord {
@@ -81,6 +115,7 @@ export interface Stallion {
   sireLine: string;
   mareLine?: string;
   bloodRegion: BloodRegion;
+  myostatin: MyostatinProfile;
   pedigree: FiveGenerationPedigree;
   raceRecord?: RaceRecord;
 }
@@ -95,6 +130,7 @@ export interface Broodmare {
   sireLine: string;
   mareLine?: string;
   bloodRegion: BloodRegion;
+  myostatin: MyostatinProfile;
   pedigree: FiveGenerationPedigree;
   raceRecord?: RaceRecord;
 }
@@ -110,6 +146,8 @@ export interface ProducedHorse {
   abilities: AbilityScores;
   ranks: AbilityRanks;
   surface: Surface;
+  myostatin: MyostatinProfile;
+  abilityInfluences: AbilityInfluence[];
   pedigree: FiveGenerationPedigree;
   breedingEvaluation: BreedingEvaluation;
   createdAt: string;
@@ -126,6 +164,10 @@ export interface BreedingEvaluation {
   inbreeding: InbreedingReport[];
   strongestInbreedingPercent: number;
   hasOutcross: boolean;
+  constitutionPenalty: number;
+  factorEffects: FactorEffectReport[];
+  outcrossFactorEffects: FactorEffectReport[];
+  sireLineTendency: SireLineTendencyReport;
 }
 
 export interface InbreedingReport {
@@ -133,6 +175,8 @@ export interface InbreedingReport {
   ancestorName: string;
   positions: string[];
   totalBloodPercent: number;
+  factors: InbreedingFactor[];
+  factorEffects: FactorEffectReport[];
 }
 
 export interface SaveData {

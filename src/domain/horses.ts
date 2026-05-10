@@ -7,6 +7,7 @@ import type {
   Stallion,
   Surface,
 } from "./types.ts";
+import { estimateBroodmareMyostatin, estimateStallionMyostatin } from "./bloodlineTraits.ts";
 import { REAL_PEDIGREES } from "./realPedigrees.ts";
 
 const GLOBAL_SIRE_LINES = [
@@ -154,6 +155,7 @@ function createStallion(profile: StallionProfile): Stallion {
     sireLine: profile.sireLine,
     mareLine: profile.mareLine,
     bloodRegion: profile.bloodRegion,
+    myostatin: estimateStallionMyostatin(profile),
     pedigree: REAL_PEDIGREES[profile.id] ?? buildPedigree(profile),
   };
 }
@@ -169,6 +171,7 @@ function createBroodmare(profile: BroodmareProfile): Broodmare {
     sireLine: profile.sireLine,
     mareLine: profile.mareLine,
     bloodRegion: profile.bloodRegion,
+    myostatin: estimateBroodmareMyostatin(profile),
     pedigree: REAL_PEDIGREES[profile.id] ?? buildPedigree(profile),
   };
 }
@@ -180,6 +183,7 @@ export function stallionToPedigreeNode(stallion: Stallion): PedigreeNode {
     sireLine: stallion.sireLine,
     mareLine: stallion.mareLine,
     bloodRegion: stallion.bloodRegion,
+    myostatin: stallion.myostatin,
   };
 }
 
@@ -190,6 +194,7 @@ export function broodmareToPedigreeNode(broodmare: Broodmare): PedigreeNode {
     sireLine: broodmare.sireLine,
     mareLine: broodmare.mareLine,
     bloodRegion: broodmare.bloodRegion,
+    myostatin: broodmare.myostatin,
   };
 }
 

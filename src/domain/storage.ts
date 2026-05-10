@@ -1,6 +1,7 @@
 import { SAVE_DATA_VERSION, SAVE_KEY } from "./constants.ts";
+import { getSireLineTendency, normalizeMyostatinProfile } from "./bloodlineTraits.ts";
 import { defaultBroodmares, defaultStallions } from "./horses.ts";
-import type { SaveData } from "./types.ts";
+import type { BreedingEvaluation, InbreedingReport, ProducedHorse, SaveData } from "./types.ts";
 
 export interface ParsedSaveData {
   data: SaveData;
@@ -22,6 +23,7 @@ export function createInitialSaveData(now = new Date().toISOString()): SaveData 
 export function saveToLocalStorage(data: SaveData): SaveData {
   const savedData = {
     ...data,
+    version: SAVE_DATA_VERSION,
     savedAt: new Date().toISOString(),
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(savedData));
@@ -38,6 +40,7 @@ export function serializeSaveData(data: SaveData): string {
   return JSON.stringify(
     {
       ...data,
+      version: SAVE_DATA_VERSION,
       savedAt: new Date().toISOString(),
     },
     null,
@@ -67,17 +70,52 @@ export function parseSaveDataJson(raw: string): ParsedSaveData {
 }
 
 function normalizeSaveData(data: SaveData): SaveData {
+  const producedHorses = data.producedHorses.map(normalizeProducedHorse);
   return {
     ...data,
+    version: SAVE_DATA_VERSION,
     defaultStallions,
     defaultBroodmares,
-    producedHorses: data.producedHorses,
+    producedHorses,
     homebredStallionIds: data.homebredStallionIds.filter((id) =>
-      data.producedHorses.some((horse) => horse.id === id),
+      producedHorses.some((horse) => horse.id === id),
     ),
     homebredBroodmareIds: data.homebredBroodmareIds.filter((id) =>
-      data.producedHorses.some((horse) => horse.id === id),
+      producedHorses.some((horse) => horse.id === id),
     ),
+  };
+}
+
+function normalizeProducedHorse(horse: ProducedHorse): ProducedHorse {
+  return {
+    ...horse,
+    myostatin: normalizeMyostatinProfile(horse.myostatin),
+    abilityInfluences: horse.abilityInfluences ?? [],
+    breedingEvaluation: normalizeBreedingEvaluation(horse),
+  };
+}
+
+function normalizeBreedingEvaluation(horse: ProducedHorse): BreedingEvaluation {
+  const evaluation = horse.breedingEvaluation;
+  const inbreeding = (evaluation.inbreeding ?? []).map(normalizeInbreedingReport);
+  const factorEffects = evaluation.factorEffects ?? inbreeding.flatMap((item) => item.factorEffects);
+  return {
+    ...evaluation,
+    inbreeding,
+    constitutionPenalty: evaluation.constitutionPenalty ?? 0,
+    factorEffects,
+    outcrossFactorEffects: evaluation.outcrossFactorEffects ?? [],
+    sireLineTendency:
+      evaluation.sireLineTendency ??
+      getSireLineTendency(horse.pedigree.generations[0]?.[0]?.sireLine ?? "Unknown"),
+  };
+}
+
+function normalizeInbreedingReport(report: InbreedingReport): InbreedingReport {
+  return {
+    ...report,
+    factors: report.factors ?? [],
+    factorEffects: report.factorEffects ?? [],
   };
 }
 
@@ -91,6 +129,32 @@ function isSaveData(value: unknown): value is SaveData {
     Array.isArray(data.defaultBroodmares) &&
     Array.isArray(data.producedHorses) &&
     Array.isArray(data.homebredStallionIds) &&
-    Array.isArray(data.homebredBroodmareIds)
+    Array.isArray(data.homebredBroodmareIds) &&
+    data.producedHorses.every(isProducedHorseSaveShape)
   );
+}
+
+function isProducedHorseSaveShape(value: unknown): value is ProducedHorse {
+  if (!value || typeof value !== "object") return false;
+  const horse = value as Record<string, unknown>;
+  return (
+    typeof horse.id === "string" &&
+    typeof horse.name === "string" &&
+    typeof horse.sireId === "string" &&
+    typeof horse.damId === "string" &&
+    typeof horse.birthIndex === "number" &&
+    typeof horse.seedIndex === "number" &&
+    isRecord(horse.abilities) &&
+    isRecord(horse.ranks) &&
+    isRecord(horse.pedigree) &&
+    Array.isArray((horse.pedigree as Record<string, unknown>).generations) &&
+    isRecord(horse.breedingEvaluation) &&
+    Array.isArray((horse.breedingEvaluation as Record<string, unknown>).inbreeding) &&
+    typeof horse.createdAt === "string" &&
+    isRecord(horse.raceRecord)
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
 }

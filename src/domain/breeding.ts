@@ -5,14 +5,26 @@ import {
   rankToMidScore,
   SEED_PATTERN_COUNT,
 } from "./constants.ts";
+import {
+  FACTOR_BASE_DELTAS,
+  getMyostatinAbilityDeltas,
+  getSireLineTendency,
+  normalizeMyostatinProfile,
+  resolveFoalMyostatin,
+} from "./bloodlineTraits.ts";
 import { broodmareToPedigreeNode, stallionToPedigreeNode } from "./horses.ts";
 import type {
+  AbilityDeltaMap,
+  AbilityInfluence,
   AbilityScores,
   BloodRegion,
   BreedingEvaluation,
   BreedingGrade,
   Broodmare,
+  FactorEffectReport,
   FiveGenerationPedigree,
+  InbreedingFactor,
+  MyostatinProfile,
   PedigreeNode,
   ProducedHorse,
   Rank,
@@ -37,6 +49,12 @@ interface RerollProducedHorseSeedInput {
   sire: Stallion;
   dam: Broodmare;
   seedIndex: number;
+}
+
+interface AbilityGenerationResult {
+  abilities: AbilityScores;
+  influences: AbilityInfluence[];
+  myostatin: MyostatinProfile;
 }
 
 interface AncestorOccurrence {
@@ -92,11 +110,20 @@ export function evaluatePedigree(pedigree: FiveGenerationPedigree): BreedingEval
       const totalBloodPercent = roundBloodPercent(
         items.reduce((total, item) => total + item.contribution, 0),
       );
+      const factors = uniqueFactors(items.flatMap((item) => item.node.factors ?? []));
+      const positions = items.map((item) => item.position);
       return {
         ancestorId: items[0].node.id,
         ancestorName: items[0].node.name,
-        positions: items.map((item) => item.position),
+        positions,
         totalBloodPercent,
+        factors,
+        factorEffects: createInbreedingFactorEffects({
+          ancestorName: items[0].node.name,
+          bloodPercent: totalBloodPercent,
+          factors,
+          positions,
+        }),
       };
     })
     .sort((a, b) => b.totalBloodPercent - a.totalBloodPercent);
@@ -114,6 +141,12 @@ export function evaluatePedigree(pedigree: FiveGenerationPedigree): BreedingEval
       : isGoodBySireLine || isGoodByMareLine
         ? "good"
         : "normal";
+  const factorEffects = inbreeding.flatMap((item) => item.factorEffects);
+  const outcrossFactorEffects = inbreeding.length === 0 ? createOutcrossFactorEffects(pedigree) : [];
+  const strongestInbreedingPercent = inbreeding[0]?.totalBloodPercent ?? 0;
+  const totalInbreedingPercent = roundBloodPercent(
+    inbreeding.reduce((total, item) => total + item.totalBloodPercent, 0),
+  );
 
   return {
     sireLineDiversityCount,
@@ -122,8 +155,15 @@ export function evaluatePedigree(pedigree: FiveGenerationPedigree): BreedingEval
     isGoodByMareLine,
     grade,
     inbreeding,
-    strongestInbreedingPercent: inbreeding[0]?.totalBloodPercent ?? 0,
+    strongestInbreedingPercent,
     hasOutcross: inbreeding.length === 0,
+    constitutionPenalty: calculateConstitutionPenalty(
+      strongestInbreedingPercent,
+      totalInbreedingPercent,
+    ),
+    factorEffects,
+    outcrossFactorEffects,
+    sireLineTendency: getSireLineTendency(pedigree.generations[0]?.[0]?.sireLine ?? "Unknown"),
   };
 }
 
@@ -134,7 +174,7 @@ export function generateProducedHorse(input: GenerateFoalInput): ProducedHorse {
   const pedigree = buildFoalPedigree(input.sire, input.dam, id);
   const breedingEvaluation = evaluatePedigree(pedigree);
   const random = createSeededRandom(`${input.sire.id}:${input.dam.id}:${input.seedIndex}`);
-  const abilities = generateAbilityScores(input.sire, input.dam, breedingEvaluation, random);
+  const abilityResult = generateAbilityScores(input.sire, input.dam, breedingEvaluation, random);
 
   return {
     id,
@@ -144,9 +184,11 @@ export function generateProducedHorse(input: GenerateFoalInput): ProducedHorse {
     damId: input.dam.id,
     birthIndex: input.birthIndex,
     seedIndex: input.seedIndex,
-    abilities,
-    ranks: abilityScoresToRanks(abilities),
+    abilities: abilityResult.abilities,
+    ranks: abilityScoresToRanks(abilityResult.abilities),
     surface: inheritSurface(input.sire.surface, input.dam.surface, random),
+    myostatin: abilityResult.myostatin,
+    abilityInfluences: abilityResult.influences,
     pedigree,
     breedingEvaluation,
     createdAt: input.createdAt ?? new Date().toISOString(),
@@ -167,15 +209,17 @@ export function rerollProducedHorseSeed(input: RerollProducedHorseSeedInput): Pr
   const pedigree = buildFoalPedigree(input.sire, input.dam, input.horse.id);
   const breedingEvaluation = evaluatePedigree(pedigree);
   const random = createSeededRandom(`${input.sire.id}:${input.dam.id}:${input.seedIndex}`);
-  const abilities = generateAbilityScores(input.sire, input.dam, breedingEvaluation, random);
+  const abilityResult = generateAbilityScores(input.sire, input.dam, breedingEvaluation, random);
 
   return {
     ...input.horse,
     sireId: input.sire.id,
     damId: input.dam.id,
     seedIndex: input.seedIndex,
-    abilities,
-    ranks: abilityScoresToRanks(abilities),
+    abilities: abilityResult.abilities,
+    ranks: abilityScoresToRanks(abilityResult.abilities),
+    myostatin: abilityResult.myostatin,
+    abilityInfluences: abilityResult.influences,
     pedigree,
     breedingEvaluation,
   };
@@ -201,18 +245,89 @@ function collectAncestorOccurrences(
   return occurrences;
 }
 
+function createInbreedingFactorEffects(input: {
+  ancestorName: string;
+  bloodPercent: number;
+  factors: InbreedingFactor[];
+  positions: string[];
+}): FactorEffectReport[] {
+  const multiplier = inbreedingFactorMultiplier(input.bloodPercent);
+  return input.factors
+    .map((factor) => ({
+      source: "inbreeding" as const,
+      factor,
+      ancestorName: input.ancestorName,
+      positions: input.positions,
+      bloodPercent: input.bloodPercent,
+      multiplier,
+      abilityDeltas: scaleDeltas(FACTOR_BASE_DELTAS[factor], multiplier),
+    }))
+    .filter((effect) => hasDeltas(effect.abilityDeltas));
+}
+
+function createOutcrossFactorEffects(pedigree: FiveGenerationPedigree): FactorEffectReport[] {
+  const factorBlood = new Map<InbreedingFactor, number>();
+  pedigree.generations.forEach((generation, generationIndex) => {
+    generation.forEach((node) => {
+      (node.factors ?? []).forEach((factor) => {
+        factorBlood.set(factor, (factorBlood.get(factor) ?? 0) + PEDIGREE_CONTRIBUTIONS[generationIndex]);
+      });
+    });
+  });
+
+  return Array.from(factorBlood.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 3)
+    .map(([factor, bloodPercent]) => {
+      const roundedBloodPercent = roundBloodPercent(bloodPercent);
+      const multiplier = outcrossFactorMultiplier(roundedBloodPercent);
+      return {
+        source: "outcross" as const,
+        factor,
+        bloodPercent: roundedBloodPercent,
+        multiplier,
+        abilityDeltas: scaleDeltas(FACTOR_BASE_DELTAS[factor], multiplier),
+      };
+    })
+    .filter((effect) => hasDeltas(effect.abilityDeltas));
+}
+
+function inbreedingFactorMultiplier(bloodPercent: number): number {
+  return roundMultiplier(Math.max(0.25, Math.min(1.15, bloodPercent / INBREEDING_WARNING_THRESHOLD)));
+}
+
+function outcrossFactorMultiplier(bloodPercent: number): number {
+  return roundMultiplier(0.2 + Math.min(bloodPercent, INBREEDING_WARNING_THRESHOLD) / INBREEDING_WARNING_THRESHOLD * 0.35);
+}
+
+function scaleDeltas(deltas: AbilityDeltaMap, multiplier: number): AbilityDeltaMap {
+  return Object.fromEntries(
+    deltaEntries(deltas)
+      .map(([key, value]) => [key, Math.round(value * multiplier)] as const)
+      .filter(([, value]) => value !== 0),
+  ) as AbilityDeltaMap;
+}
+
+function uniqueFactors(factors: InbreedingFactor[]): InbreedingFactor[] {
+  return Array.from(new Set(factors)).slice(0, 3);
+}
+
 function generateAbilityScores(
   sire: Stallion,
   dam: Broodmare,
   evaluation: BreedingEvaluation,
   random: () => number,
-): AbilityScores {
+): AbilityGenerationResult {
   const variance = STABILITY_VARIANCE[sire.stabilityRank];
   const gradeMinimum = GRADE_MINIMUMS[evaluation.grade];
   const distanceStamina = distanceToRankMidpoint(sire.distanceMax);
   const distanceSpeed = distanceToSpeedMidpoint(sire.distanceMin, sire.distanceMax);
   const regionFear = fearAdjustment(sire.bloodRegion) + fearAdjustment(dam.bloodRegion);
-  const inbreedingPenalty = calculateConstitutionPenalty(evaluation.strongestInbreedingPercent);
+  const myostatin = resolveFoalMyostatin(
+    normalizeMyostatinProfile(sire.myostatin),
+    normalizeMyostatinProfile(dam.myostatin),
+    random,
+  );
 
   const raw: AbilityScores = {
     speed: sampleAbility(
@@ -260,7 +375,7 @@ function generateAbilityScores(
       random,
     ),
     constitution: sampleAbility(
-      average([rankToMidScore(sire.robustnessRank), 64]) - inbreedingPenalty,
+      average([rankToMidScore(sire.robustnessRank), 64]) - evaluation.constitutionPenalty,
       variance,
       random,
     ),
@@ -271,11 +386,81 @@ function generateAbilityScores(
     ),
   };
 
+  const appliedInfluences = buildAppliedInfluences(evaluation, myostatin);
+  const influences = [
+    ...buildConstitutionInfluences(evaluation),
+    ...appliedInfluences,
+  ];
+  const adjusted = applyInfluences(raw, appliedInfluences);
+
   if (evaluation.hasOutcross) {
-    raw.constitution = Math.max(raw.constitution, 32);
+    adjusted.constitution = Math.max(adjusted.constitution, 32);
   }
 
-  return applyMinimums(raw, gradeMinimum);
+  return {
+    abilities: applyMinimums(adjusted, gradeMinimum),
+    influences,
+    myostatin,
+  };
+}
+
+function buildAppliedInfluences(
+  evaluation: BreedingEvaluation,
+  myostatin: MyostatinProfile,
+): AbilityInfluence[] {
+  const influences: AbilityInfluence[] = [
+    ...factorEffectsToInfluences(evaluation.factorEffects),
+    ...factorEffectsToInfluences(evaluation.outcrossFactorEffects),
+    {
+      source: "sire_line",
+      label: `Sire line: ${evaluation.sireLineTendency.label}`,
+      abilityDeltas: evaluation.sireLineTendency.abilityDeltas,
+    },
+    {
+      source: "myostatin",
+      label: `Myostatin: ${myostatin.genotype ?? "estimated"}`,
+      abilityDeltas: getMyostatinAbilityDeltas(myostatin),
+    },
+  ];
+  return influences.filter((influence) => hasDeltas(influence.abilityDeltas));
+}
+
+function buildConstitutionInfluences(evaluation: BreedingEvaluation): AbilityInfluence[] {
+  if (evaluation.constitutionPenalty <= 0) return [];
+  return [
+    {
+      source: "constitution",
+      label: `Inbreeding constitution penalty`,
+      abilityDeltas: { constitution: -evaluation.constitutionPenalty },
+    },
+  ];
+}
+
+function factorEffectsToInfluences(effects: FactorEffectReport[]): AbilityInfluence[] {
+  return effects.map((effect) => {
+    const source: AbilityInfluence["source"] = effect.source;
+    return {
+      source,
+      label:
+        effect.source === "inbreeding"
+          ? `Inbreeding: ${effect.ancestorName ?? effect.factor} / ${effect.factor}`
+          : `Outcross expression: ${effect.factor}`,
+      abilityDeltas: effect.abilityDeltas,
+    };
+  });
+}
+
+function applyInfluences(
+  scores: AbilityScores,
+  influences: AbilityInfluence[],
+): AbilityScores {
+  const adjusted = { ...scores };
+  influences.forEach((influence) => {
+    deltaEntries(influence.abilityDeltas).forEach(([key, delta]) => {
+      adjusted[key] = clampAbility(adjusted[key] + delta);
+    });
+  });
+  return adjusted;
 }
 
 function sampleAbility(base: number, variance: number, random: () => number): number {
@@ -298,12 +483,20 @@ function applyMinimums(scores: AbilityScores, minimum: number): AbilityScores {
   };
 }
 
-export function calculateConstitutionPenalty(strongestInbreedingPercent: number): number {
+export function calculateConstitutionPenalty(
+  strongestInbreedingPercent: number,
+  totalInbreedingPercent = strongestInbreedingPercent,
+): number {
   if (strongestInbreedingPercent <= 0) return 0;
+  const stackedPenalty = Math.max(0, totalInbreedingPercent - strongestInbreedingPercent) * 0.25;
   if (strongestInbreedingPercent > INBREEDING_WARNING_THRESHOLD) {
-    return 20 + Math.round((strongestInbreedingPercent - INBREEDING_WARNING_THRESHOLD) * 0.7);
+    return (
+      20 +
+      Math.round((strongestInbreedingPercent - INBREEDING_WARNING_THRESHOLD) * 0.7) +
+      Math.round(stackedPenalty)
+    );
   }
-  return Math.round(strongestInbreedingPercent * 0.2);
+  return Math.round(strongestInbreedingPercent * 0.2 + stackedPenalty);
 }
 
 function inheritSurface(sireSurface: Surface, damSurface: Surface, random: () => number): Surface {
@@ -336,6 +529,18 @@ function fearAdjustment(region: BloodRegion): number {
 
 function average(values: number[]): number {
   return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function deltaEntries(deltas: AbilityDeltaMap): [keyof AbilityScores, number][] {
+  return Object.entries(deltas) as [keyof AbilityScores, number][];
+}
+
+function hasDeltas(deltas: AbilityDeltaMap): boolean {
+  return deltaEntries(deltas).length > 0;
+}
+
+function roundMultiplier(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 function roundBloodPercent(value: number): number {

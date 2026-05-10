@@ -15,6 +15,7 @@ import {
   generateProducedHorse,
   rerollProducedHorseSeed,
 } from "./domain/breeding.ts";
+import { getSireLineTendency } from "./domain/bloodlineTraits.ts";
 import { producedHorseToBroodmare, producedHorseToStallion } from "./domain/homebred.ts";
 import {
   createInitialSaveData,
@@ -23,11 +24,15 @@ import {
   saveToLocalStorage,
 } from "./domain/storage.ts";
 import type {
+  AbilityDeltaMap,
+  AbilityInfluence,
   AbilityScores,
   BreedingEvaluation,
   Broodmare,
+  FactorEffectReport,
   FiveGenerationPedigree,
   InbreedingFactor,
+  MyostatinProfile,
   ProducedHorse,
   SaveData,
   Stallion,
@@ -510,7 +515,7 @@ export default function GameApp() {
                     {horse.retiredAs && (
                       <p>{horse.retiredAs === "stallion" ? "自家生産種牡馬" : "自家生産繁殖牝馬"}</p>
                     )}
-                    <AbilityRankStrip horse={horse} />
+                    <AbilityRankStrip horse={horse} showDebug={showDebug} />
                     <SeedControl
                       onChange={(value) => handleProducedSeedChange(horse, value)}
                       value={seedDrafts[horse.id] ?? String(horse.seedIndex)}
@@ -583,6 +588,8 @@ function StallionTable({ stallions }: { stallions: Stallion[] }) {
             <th>実績</th>
             <th>安定</th>
             <th>父系ライン</th>
+            <th>Tendency</th>
+            <th>MSTN</th>
           </tr>
         </thead>
         <tbody>
@@ -599,6 +606,8 @@ function StallionTable({ stallions }: { stallions: Stallion[] }) {
               <td>{horse.performanceRank}</td>
               <td>{horse.stabilityRank}</td>
               <td>{horse.sireLine}</td>
+              <td>{getSireLineTendency(horse.sireLine).label}</td>
+              <td>{formatMyostatinProfile(horse.myostatin)}</td>
             </tr>
           ))}
         </tbody>
@@ -619,6 +628,7 @@ function BroodmareTable({ broodmares }: { broodmares: Broodmare[] }) {
             <th>馬場</th>
             <th>父系ライン</th>
             <th>メアーライン</th>
+            <th>MSTN</th>
           </tr>
         </thead>
         <tbody>
@@ -630,6 +640,7 @@ function BroodmareTable({ broodmares }: { broodmares: Broodmare[] }) {
               <td>{SURFACE_LABELS[horse.surface]}</td>
               <td>{horse.sireLine}</td>
               <td>{horse.mareLine}</td>
+              <td>{formatMyostatinProfile(horse.myostatin)}</td>
             </tr>
           ))}
         </tbody>
@@ -659,6 +670,14 @@ function EvaluationView({ evaluation }: { evaluation: BreedingEvaluation }) {
           <dt>アウトブリード</dt>
           <dd>{evaluation.hasOutcross ? "成立" : "不成立"}</dd>
         </div>
+        <div>
+          <dt>Tendency</dt>
+          <dd>{evaluation.sireLineTendency.label}</dd>
+        </div>
+        <div>
+          <dt>Constitution debuff</dt>
+          <dd>{evaluation.constitutionPenalty}</dd>
+        </div>
       </dl>
       {evaluation.strongestInbreedingPercent > INBREEDING_WARNING_THRESHOLD && (
         <p className="warning-text">18.75%超のクロスがあります。</p>
@@ -674,6 +693,8 @@ function EvaluationView({ evaluation }: { evaluation: BreedingEvaluation }) {
       ) : (
         <p>クロスなし</p>
       )}
+      <FactorEffectList effects={evaluation.factorEffects} title="Inbreeding factor effects" />
+      <FactorEffectList effects={evaluation.outcrossFactorEffects} title="Outcross factor expression" />
     </div>
   );
 }
@@ -701,12 +722,15 @@ function ProducedResult({
         <p>父 {findHorseName(horse.sireId)}</p>
         <p>母 {findHorseName(horse.damId)}</p>
         <p>配合評価 {BREEDING_GRADE_LABELS[evaluation.grade]}</p>
+        <p>MSTN {formatMyostatinProfile(horse.myostatin)}</p>
+        <p>Tendency {evaluation.sireLineTendency.label}</p>
         <p>{buildResultComment(evaluation)}</p>
       </div>
       <SeedControl onChange={onSeedChange} value={seedValue} />
       <AbilityTable horse={horse} />
       <PedigreeTable pedigree={horse.pedigree} />
       {showDebug && <AbilityDebug horse={horse} />}
+      {showDebug && <AbilityInfluenceList influences={horse.abilityInfluences} />}
     </section>
   );
 }
@@ -745,7 +769,6 @@ function AbilityTable({ horse }: { horse: ProducedHorse }) {
           <thead>
             <tr>
               <th>能力</th>
-              <th>値</th>
               <th>ランク</th>
             </tr>
           </thead>
@@ -753,14 +776,12 @@ function AbilityTable({ horse }: { horse: ProducedHorse }) {
             {ABILITY_KEYS.map((key) => (
               <tr key={key}>
                 <td>{abilityLabels[key]}</td>
-                <td>{horse.abilities[key]}</td>
                 <td>{horse.ranks[key]}</td>
               </tr>
             ))}
             <tr>
               <td>馬場適性</td>
               <td>{SURFACE_LABELS[horse.surface]}</td>
-              <td>-</td>
             </tr>
           </tbody>
         </table>
@@ -769,15 +790,15 @@ function AbilityTable({ horse }: { horse: ProducedHorse }) {
   );
 }
 
-function AbilityRankStrip({ horse }: { horse: ProducedHorse }) {
+function AbilityRankStrip({ horse, showDebug }: { horse: ProducedHorse; showDebug: boolean }) {
   return (
     <dl className="ability-strip">
       {ABILITY_KEYS.map((key) => (
         <div key={key}>
           <dt>{abilityLabels[key]}</dt>
           <dd>
-            <strong>{horse.abilities[key]}</strong>
-            <span>{horse.ranks[key]}</span>
+            <strong>{showDebug ? horse.abilities[key] : horse.ranks[key]}</strong>
+            {showDebug && <span>{horse.ranks[key]}</span>}
           </dd>
         </div>
       ))}
@@ -815,6 +836,51 @@ function AbilityDebug({ horse }: { horse: ProducedHorse }) {
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+function AbilityInfluenceList({ influences }: { influences: AbilityInfluence[] }) {
+  if (influences.length === 0) return null;
+  return (
+    <section className="debug-panel">
+      <h3>debug ability influences</h3>
+      <ul className="effect-list">
+        {influences.map((influence, index) => (
+          <li key={`${influence.source}-${index}`}>
+            <strong>{influence.label}</strong>
+            <span>{formatDeltas(influence.abilityDeltas)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function FactorEffectList({
+  effects,
+  title,
+}: {
+  effects: FactorEffectReport[];
+  title: string;
+}) {
+  if (effects.length === 0) return null;
+  return (
+    <section className="effect-panel">
+      <h3>{title}</h3>
+      <ul className="effect-list">
+        {effects.map((effect, index) => (
+          <li key={`${effect.source}-${effect.factor}-${index}`}>
+            <strong>
+              {factorLabels[effect.factor]} x{effect.multiplier}
+            </strong>
+            <span>
+              {effect.ancestorName ? `${effect.ancestorName} / ` : ""}
+              {effect.bloodPercent}% / {formatDeltas(effect.abilityDeltas)}
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -875,6 +941,30 @@ function buildResultComment(evaluation: BreedingEvaluation): string {
     return "血統構成に良い広がりがあります。";
   }
   return "標準的な配合です。";
+}
+
+function formatMyostatinProfile(profile: MyostatinProfile): string {
+  const probabilities = profile.probabilities;
+  const probabilityText = `CC ${formatProbability(probabilities.CC)} / CT ${formatProbability(probabilities.CT)} / TT ${formatProbability(probabilities.TT)}`;
+  return profile.genotype ? `${profile.genotype} (${probabilityText})` : probabilityText;
+}
+
+function formatProbability(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatDeltas(deltas: AbilityDeltaMap): string {
+  return deltaEntries(deltas)
+    .map(([key, value]) => `${abilityLabels[key]} ${formatSigned(value)}`)
+    .join(" / ");
+}
+
+function formatSigned(value: number): string {
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function deltaEntries(deltas: AbilityDeltaMap): [keyof AbilityScores, number][] {
+  return Object.entries(deltas) as [keyof AbilityScores, number][];
 }
 
 function formatDate(value: string): string {

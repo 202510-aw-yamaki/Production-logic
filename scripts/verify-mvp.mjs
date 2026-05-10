@@ -6,7 +6,8 @@ import {
   generateProducedHorse,
   rerollProducedHorseSeed,
 } from "../src/domain/breeding.ts";
-import { SEED_PATTERN_COUNT } from "../src/domain/constants.ts";
+import { getSireLineTendency } from "../src/domain/bloodlineTraits.ts";
+import { SAVE_DATA_VERSION, SEED_PATTERN_COUNT } from "../src/domain/constants.ts";
 import { defaultBroodmares, defaultStallions } from "../src/domain/horses.ts";
 import { REAL_PEDIGREE_SOURCE_URLS } from "../src/domain/realPedigrees.ts";
 import {
@@ -219,6 +220,17 @@ assert.deepEqual(
   "Sunday Silence factors",
 );
 
+for (const horse of [...defaultStallions, ...defaultBroodmares]) {
+  horse.pedigree.generations.flat().forEach((node) => {
+    assert.ok((node.factors ?? []).length <= 3, `${node.name} should have 0 to 3 factors`);
+  });
+  assert.ok(horse.myostatin, `${horse.name} should keep myostatin profile`);
+  assert.ok(
+    Math.abs(Object.values(horse.myostatin.probabilities).reduce((total, value) => total + value, 0) - 1) < 0.002,
+    `${horse.name} myostatin probabilities should sum to 1`,
+  );
+}
+
 const southernStars = defaultBroodmares.find((horse) => horse.id === "broodmare-buena-vista");
 assert.ok(southernStars, "Southern Stars should exist");
 assert.equal(southernStars.pedigree.generations[0][0].name, "Smart Strike", "Southern Stars sire");
@@ -226,14 +238,32 @@ assert.equal(southernStars.pedigree.generations[0][1].name, "Stacelita", "Southe
 
 const threeByFour = makePedigreeWithCross(2, 3);
 assert.equal(evaluatePedigree(threeByFour).inbreeding[0].totalBloodPercent, 18.75, "3x4 should be 18.75");
+assert.equal(
+  evaluatePedigree(threeByFour).inbreeding[0].factorEffects.find((effect) => effect.factor === "speed").abilityDeltas.speed,
+  6,
+  "3x4 speed factor should use full base effect",
+);
+assert.ok(
+  evaluatePedigree(makePedigreeWithCross(3, 4)).inbreeding[0].factorEffects.find((effect) => effect.factor === "speed")
+    .abilityDeltas.speed < 6,
+  "lower blood inbreeding factor should attenuate",
+);
 assert.ok(
   evaluatePedigree(makePedigreeWithCross(2, 2)).strongestInbreedingPercent > 18.75,
   "3x3 should exceed 18.75",
 );
 assert.equal(evaluatePedigree(makeOutcrossPedigree()).hasOutcross, true, "outcross should be detected");
+assert.ok(
+  evaluatePedigree(makeOutcrossPedigree()).outcrossFactorEffects.some((effect) => effect.factor === "speed"),
+  "outcross should express ancestor factors",
+);
 assert.equal(calculateConstitutionPenalty(0), 0, "outcross should not penalize constitution");
 assert.equal(calculateConstitutionPenalty(18.75), 4, "3x4 constitution penalty should be light");
 assert.equal(calculateConstitutionPenalty(21.875), 22, "21.875% constitution penalty should keep current balance");
+assert.ok(
+  calculateConstitutionPenalty(18.75, 31.25) > calculateConstitutionPenalty(18.75),
+  "stacked inbreeding should add constitution pressure",
+);
 
 const sire = defaultStallions[0];
 const dam = defaultBroodmares[0];
@@ -253,7 +283,14 @@ const producedB = generateProducedHorse({
 });
 assert.deepEqual(producedA.abilities, producedB.abilities, "same sire, dam and seed should be deterministic");
 assert.equal(evaluateBreeding(sire, dam).grade, "very_good", "representative pair should be very_good");
+assert.equal(evaluateBreeding(sire, dam).sireLineTendency.tendency, "acceleration", "Sunday Silence line should lean acceleration");
+assert.equal(getSireLineTendency("Roberto").tendency, "sustain", "Roberto line should lean sustain");
 assert.ok(Math.min(...Object.values(producedA.abilities)) >= 32, "very_good should guarantee each ability >=32");
+assert.ok(["CC", "CT", "TT"].includes(producedA.myostatin.genotype), "produced horse should resolve myostatin genotype");
+assert.ok(
+  producedA.abilityInfluences.some((influence) => influence.source === "myostatin"),
+  "myostatin should be recorded as an ability influence",
+);
 const rerolledProduced = rerollProducedHorseSeed({ horse: producedA, sire, dam, seedIndex: 43 });
 assert.equal(rerolledProduced.id, producedA.id, "reroll should keep produced horse id");
 assert.equal(rerolledProduced.seedIndex, 43, "reroll should update seedIndex");
@@ -277,9 +314,55 @@ assert.ok(Math.min(...Object.values(goodFoal.abilities)) >= 16, "good should gua
 
 const outcrossSire = makeSyntheticStallion("outcross-sire", ["A"], ["M1"], true);
 const outcrossDam = makeSyntheticBroodmare("outcross-dam", ["B"], ["M2"], true);
+outcrossSire.pedigree.generations[0][0].factors = ["speed"];
+outcrossDam.pedigree.generations[0][0].factors = ["sustain"];
 const outcrossFoal = generateProducedHorse({ sire: outcrossSire, dam: outcrossDam, seedIndex: 2, birthIndex: 1 });
 assert.equal(evaluateBreeding(outcrossSire, outcrossDam).hasOutcross, true, "synthetic pair should be outcross");
 assert.ok(outcrossFoal.abilities.constitution >= 32, "outcross should guarantee constitution C or better");
+assert.ok(
+  outcrossFoal.abilityInfluences.some((influence) => influence.source === "outcross"),
+  "outcross factor expression should affect abilities",
+);
+
+const ccSire = { ...makeSyntheticStallion("mstn-sire", ["SpeedLine"], ["M1"], true), myostatin: fixedMyostatin("CC") };
+const ccDam = { ...makeSyntheticBroodmare("mstn-dam", ["DamSpeedLine"], ["M2"], true), myostatin: fixedMyostatin("CC") };
+const ttSire = { ...makeSyntheticStallion("mstn-sire", ["SpeedLine"], ["M1"], true), myostatin: fixedMyostatin("TT") };
+const ttDam = { ...makeSyntheticBroodmare("mstn-dam", ["DamSpeedLine"], ["M2"], true), myostatin: fixedMyostatin("TT") };
+const ccFoal = generateProducedHorse({ sire: ccSire, dam: ccDam, seedIndex: 9, birthIndex: 1 });
+const ttFoal = generateProducedHorse({ sire: ttSire, dam: ttDam, seedIndex: 9, birthIndex: 1 });
+assert.equal(ccFoal.myostatin.genotype, "CC", "CC parents should produce CC genotype");
+assert.equal(ttFoal.myostatin.genotype, "TT", "TT parents should produce TT genotype");
+assert.ok(ccFoal.abilities.acceleration > ttFoal.abilities.acceleration, "CC should lift acceleration versus TT");
+assert.ok(ttFoal.abilities.sustain > ccFoal.abilities.sustain, "TT should lift sustain versus CC");
+
+const balanceSamples = [];
+defaultStallions.slice(0, 8).forEach((sampleSire, sireIndex) => {
+  defaultBroodmares.slice(0, 12).forEach((sampleDam, damIndex) => {
+    [0, 17, 255].forEach((sampleSeed, seedOffset) => {
+      balanceSamples.push(
+        generateProducedHorse({
+          sire: sampleSire,
+          dam: sampleDam,
+          seedIndex: sampleSeed,
+          birthIndex: sireIndex * 100 + damIndex * 10 + seedOffset + 1,
+        }),
+      );
+    });
+  });
+});
+const balanceScores = balanceSamples.flatMap((horse) => Object.values(horse.abilities));
+const balanceAverage = averageNumber(balanceScores);
+assert.ok(Math.min(...balanceScores) >= 0, "balance sweep should keep abilities above minimum");
+assert.ok(Math.max(...balanceScores) <= 127, "balance sweep should keep abilities under cap");
+assert.ok(balanceAverage >= 35 && balanceAverage <= 115, "balance sweep average should stay in playable range");
+assert.ok(
+  new Set(balanceSamples.map((horse) => horse.myostatin.genotype)).size >= 2,
+  "balance sweep should produce multiple myostatin genotypes",
+);
+assert.ok(
+  balanceSamples.every((horse) => horse.abilityInfluences.length >= 2),
+  "balance sweep should record ability influences",
+);
 
 assert.throws(() => parseSaveDataJson("{"), /JSON/, "invalid JSON should be rejected");
 assert.throws(() => parseSaveDataJson("{}"), /セーブデータ/, "malformed save data should be rejected");
@@ -300,12 +383,40 @@ const savedData = saveToLocalStorage({
   producedHorses: [producedA],
 });
 assert.equal(loadFromLocalStorage()?.data.producedHorses.length, 1, "localStorage save should be restorable");
-assert.equal(parseSaveDataJson(serializeSaveData(savedData)).data.version, 1, "serialized JSON should be restorable");
+assert.equal(parseSaveDataJson(serializeSaveData(savedData)).data.version, SAVE_DATA_VERSION, "serialized JSON should be restorable");
+const legacyProduced = JSON.parse(JSON.stringify(producedA));
+delete legacyProduced.myostatin;
+delete legacyProduced.abilityInfluences;
+delete legacyProduced.breedingEvaluation.factorEffects;
+delete legacyProduced.breedingEvaluation.outcrossFactorEffects;
+delete legacyProduced.breedingEvaluation.sireLineTendency;
+const legacyParsed = parseSaveDataJson(
+  JSON.stringify({
+    ...createInitialSaveData("2026-05-09T00:00:00.000Z"),
+    version: 1,
+    producedHorses: [legacyProduced],
+  }),
+);
+assert.equal(legacyParsed.data.version, SAVE_DATA_VERSION, "legacy save should normalize to current version");
+assert.ok(legacyParsed.warning, "legacy save should keep version warning");
+assert.ok(legacyParsed.data.producedHorses[0].myostatin, "legacy produced horse should receive myostatin fallback");
+let rejectedBrokenProducedHorse = false;
+try {
+  parseSaveDataJson(
+    JSON.stringify({
+      ...createInitialSaveData("2026-05-09T00:00:00.000Z"),
+      producedHorses: [{ id: "broken" }],
+    }),
+  );
+} catch {
+  rejectedBrokenProducedHorse = true;
+}
+assert.equal(rejectedBrokenProducedHorse, true, "broken produced horse save data should be rejected");
 
 console.log("MVP verification passed");
 
 function makePedigreeWithCross(firstGenerationIndex, secondGenerationIndex) {
-  const shared = makeNode("shared", "Shared", "SharedM");
+  const shared = makeNode("shared", "Shared", "SharedM", ["speed", "sustain"]);
   const generations = Array.from({ length: 5 }, (_, generationIndex) =>
     Array.from({ length: 2 ** (generationIndex + 1) }, (_, slotIndex) =>
       makeNode(`n-${generationIndex}-${slotIndex}`, `Line${generationIndex}-${slotIndex}`, `M${generationIndex}`),
@@ -321,7 +432,12 @@ function makeOutcrossPedigree() {
     rootHorseId: "outcross",
     generations: Array.from({ length: 5 }, (_, generationIndex) =>
       Array.from({ length: 2 ** (generationIndex + 1) }, (_, slotIndex) =>
-        makeNode(`o-${generationIndex}-${slotIndex}`, `Line${generationIndex}-${slotIndex}`, `M${slotIndex}`),
+        makeNode(
+          `o-${generationIndex}-${slotIndex}`,
+          `Line${generationIndex}-${slotIndex}`,
+          `M${slotIndex}`,
+          slotIndex % 3 === 0 ? ["speed"] : [],
+        ),
       ),
     ),
   };
@@ -343,6 +459,7 @@ function makeSyntheticStallion(id, sireLines, mareLines, uniqueIds = false) {
     sireLine: sireLines[0],
     mareLine: mareLines[0],
     bloodRegion: "japan",
+    myostatin: fixedMyostatin("CT"),
     pedigree: makeSyntheticPedigree(id, sireLines, mareLines, uniqueIds),
   };
 }
@@ -358,6 +475,7 @@ function makeSyntheticBroodmare(id, sireLines, mareLines, uniqueIds = false) {
     sireLine: sireLines[0],
     mareLine: mareLines[0],
     bloodRegion: "japan",
+    myostatin: fixedMyostatin("CT"),
     pedigree: makeSyntheticPedigree(id, sireLines, mareLines, uniqueIds),
   };
 }
@@ -378,12 +496,28 @@ function makeSyntheticPedigree(rootHorseId, sireLines, mareLines, uniqueIds) {
   };
 }
 
-function makeNode(id, sireLine, mareLine) {
+function fixedMyostatin(genotype) {
+  return {
+    genotype,
+    probabilities: {
+      CC: genotype === "CC" ? 1 : 0,
+      CT: genotype === "CT" ? 1 : 0,
+      TT: genotype === "TT" ? 1 : 0,
+    },
+  };
+}
+
+function averageNumber(values) {
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function makeNode(id, sireLine, mareLine, factors = []) {
   return {
     id,
     name: id,
     sireLine,
     mareLine,
     bloodRegion: "mixed",
+    ...(factors.length > 0 ? { factors } : {}),
   };
 }

@@ -56,5 +56,5 @@ export const ANCESTOR_FACTORS: Record<string, FactorSet> = {
 };
 
 export function getAncestorFactors(name: string): InbreedingFactor[] {
-  return [...(ANCESTOR_FACTORS[name] ?? [])];
+  return [...(ANCESTOR_FACTORS[name] ?? [])].slice(0, 3);
 }

@@ -19,6 +19,7 @@ export function producedHorseToStallion(horse: ProducedHorse): Stallion {
     sireLine: sireNode?.sireLine ?? "Homebred",
     mareLine: damNode?.mareLine ?? "Homebred",
     bloodRegion: sireNode?.bloodRegion ?? damNode?.bloodRegion ?? "mixed",
+    myostatin: horse.myostatin,
     pedigree: horse.pedigree,
     raceRecord: horse.raceRecord,
   };
@@ -37,6 +38,7 @@ export function producedHorseToBroodmare(horse: ProducedHorse): Broodmare {
     sireLine: sireNode?.sireLine ?? "Homebred",
     mareLine: damNode?.mareLine ?? "Homebred",
     bloodRegion: sireNode?.bloodRegion ?? damNode?.bloodRegion ?? "mixed",
+    myostatin: horse.myostatin,
     pedigree: horse.pedigree,
     raceRecord: horse.raceRecord,
   };

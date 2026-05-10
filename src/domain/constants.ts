@@ -1,7 +1,7 @@
 import type { AbilityKey, AbilityRanks, AbilityScores, RaceRecord, Rank } from "./types.ts";
 
 export const SEED_PATTERN_COUNT = 8192;
-export const SAVE_DATA_VERSION = 1;
+export const SAVE_DATA_VERSION = 2;
 export const SAVE_KEY = "horse_breeding_game_save_v1";
 
 export const ABILITY_KEYS: AbilityKey[] = [
