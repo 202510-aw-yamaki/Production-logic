@@ -64,6 +64,87 @@ const factorLabels: Record<InbreedingFactor, string> = {
   fear: "恐怖心",
 };
 
+const factorChipLabels: Record<InbreedingFactor, string> = {
+  ...factorLabels,
+  speed: "SP",
+  stamina: "ST",
+};
+
+const sireLineLabels: Record<string, string> = {
+  "All American": "オールアメリカン",
+  Bernstein: "バーンスタイン",
+  "Big Brown": "ビッグブラウン",
+  Blame: "ブレイム",
+  "Cape Cross": "ケープクロス",
+  Churchill: "チャーチル",
+  "Colonel John": "カーネルジョン",
+  Congrats: "コングラッツ",
+  Curlin: "カーリン",
+  "Daiwa Major": "ダイワメジャー",
+  "Danehill Dancer": "デインヒルダンサー",
+  "Deep Impact": "ディープインパクト",
+  "Deputy Minister": "デピュティミニスター",
+  "Divine Park": "ディヴァインパーク",
+  "Dubai Millennium": "ドバイミレニアム",
+  Durandal: "デュランダル",
+  Fappiano: "ファピアノ",
+  Flightline: "フライトライン",
+  Frankel: "フランケル",
+  Galileo: "ガリレオ",
+  "Gold Allure": "ゴールドアリュール",
+  "Gun Runner": "ガンランナー",
+  "Hail to Reason": "ヘイルトゥリーズン",
+  Halo: "ヘイロー",
+  Harbinger: "ハービンジャー",
+  "Heart's Cry": "ハーツクライ",
+  "Henny Hughes": "ヘニーヒューズ",
+  "Holy Roman Emperor": "ホーリーローマンエンペラー",
+  Iffraaj: "イフラージ",
+  "Into Mischief": "イントゥミスチーフ",
+  Jeremy: "ジェレミー",
+  "King Halo": "キングヘイロー",
+  "King Kamehameha": "キングカメハメハ",
+  Kingmambo: "キングマンボ",
+  Kurofune: "クロフネ",
+  "Malibu Moon": "マリブムーン",
+  "Manhattan Cafe": "マンハッタンカフェ",
+  "Medaglia d'Oro": "メダグリアドーロ",
+  "Mill Reef": "ミルリーフ",
+  Montjeu: "モンジュー",
+  Motivator: "モティヴェイター",
+  "Mr. Prospector": "ミスタープロスペクター",
+  Nasrullah: "ナスルーラ",
+  "Native Dancer": "ネイティヴダンサー",
+  "Neo Universe": "ネオユニヴァース",
+  Nijinsky: "ニジンスキー",
+  "Northern Dancer": "ノーザンダンサー",
+  Orfevre: "オルフェーヴル",
+  "Per Incanto": "ペルインカント",
+  Relaunch: "リローンチ",
+  Roberto: "ロベルト",
+  Rulership: "ルーラーシップ",
+  "Sadler's Wells": "サドラーズウェルズ",
+  "Sea The Stars": "シーザスターズ",
+  "Seattle Slew": "シアトルスルー",
+  Shamardal: "シャマーダル",
+  Siyouni: "シユーニ",
+  "Smart Strike": "スマートストライク",
+  "Stay Gold": "ステイゴールド",
+  "Stay Thirsty": "ステイサースティ",
+  "Storm Cat": "ストームキャット",
+  "Street Cry": "ストリートクライ",
+  "Sunday Silence": "サンデーサイレンス",
+  "Symboli Kris S": "シンボリクリスエス",
+  Tapit: "タピット",
+  Tavistock: "タヴィストック",
+  "Tiz the Law": "ティズザロー",
+  Tizway: "ティズウェイ",
+  "Uncle Mo": "アンクルモー",
+  Wilburn: "ウィルバーン",
+  "Wootton Bassett": "ウートンバセット",
+  Zoffany: "ゾファニー",
+};
+
 const viewLabels: Record<View, string> = {
   top: "トップ",
   stallions: "種牡馬",
@@ -588,7 +669,7 @@ function StallionTable({ stallions }: { stallions: Stallion[] }) {
             <th>実績</th>
             <th>安定</th>
             <th>父系ライン</th>
-            <th>Tendency</th>
+            <th>父系傾向</th>
             <th>MSTN</th>
           </tr>
         </thead>
@@ -605,7 +686,7 @@ function StallionTable({ stallions }: { stallions: Stallion[] }) {
               <td>{horse.robustnessRank}</td>
               <td>{horse.performanceRank}</td>
               <td>{horse.stabilityRank}</td>
-              <td>{horse.sireLine}</td>
+              <td>{formatSireLineName(horse.sireLine)}</td>
               <td>{getSireLineTendency(horse.sireLine).label}</td>
               <td>{formatMyostatinProfile(horse.myostatin)}</td>
             </tr>
@@ -627,7 +708,7 @@ function BroodmareTable({ broodmares }: { broodmares: Broodmare[] }) {
             <th>スタミナ</th>
             <th>馬場</th>
             <th>父系ライン</th>
-            <th>メアーライン</th>
+            <th>ファミリーナンバー</th>
             <th>MSTN</th>
           </tr>
         </thead>
@@ -638,8 +719,8 @@ function BroodmareTable({ broodmares }: { broodmares: Broodmare[] }) {
               <td>{horse.speedRank}</td>
               <td>{horse.staminaRank}</td>
               <td>{SURFACE_LABELS[horse.surface]}</td>
-              <td>{horse.sireLine}</td>
-              <td>{horse.mareLine}</td>
+              <td>{formatSireLineName(horse.sireLine)}</td>
+              <td>{formatFamilyNumber(horse.familyNumber, horse.mareLine)}</td>
               <td>{formatMyostatinProfile(horse.myostatin)}</td>
             </tr>
           ))}
@@ -671,11 +752,11 @@ function EvaluationView({ evaluation }: { evaluation: BreedingEvaluation }) {
           <dd>{evaluation.hasOutcross ? "成立" : "不成立"}</dd>
         </div>
         <div>
-          <dt>Tendency</dt>
+          <dt>父系傾向</dt>
           <dd>{evaluation.sireLineTendency.label}</dd>
         </div>
         <div>
-          <dt>Constitution debuff</dt>
+          <dt>体質デバフ</dt>
           <dd>{evaluation.constitutionPenalty}</dd>
         </div>
       </dl>
@@ -693,8 +774,8 @@ function EvaluationView({ evaluation }: { evaluation: BreedingEvaluation }) {
       ) : (
         <p>クロスなし</p>
       )}
-      <FactorEffectList effects={evaluation.factorEffects} title="Inbreeding factor effects" />
-      <FactorEffectList effects={evaluation.outcrossFactorEffects} title="Outcross factor expression" />
+      <FactorEffectList effects={evaluation.factorEffects} title="インブリード因子効果" />
+      <FactorEffectList effects={evaluation.outcrossFactorEffects} title="アウトブリード因子発現" />
     </div>
   );
 }
@@ -723,11 +804,14 @@ function ProducedResult({
         <p>母 {findHorseName(horse.damId)}</p>
         <p>配合評価 {BREEDING_GRADE_LABELS[evaluation.grade]}</p>
         <p>MSTN {formatMyostatinProfile(horse.myostatin)}</p>
-        <p>Tendency {evaluation.sireLineTendency.label}</p>
+        <p>父系傾向 {evaluation.sireLineTendency.label}</p>
         <p>{buildResultComment(evaluation)}</p>
       </div>
       <SeedControl onChange={onSeedChange} value={seedValue} />
-      <AbilityTable horse={horse} />
+      <section className="ability-panel">
+        <h3>能力</h3>
+        <AbilityRankStrip horse={horse} showDebug={showDebug} />
+      </section>
       <PedigreeTable pedigree={horse.pedigree} />
       {showDebug && <AbilityDebug horse={horse} />}
       {showDebug && <AbilityInfluenceList influences={horse.abilityInfluences} />}
@@ -889,19 +973,33 @@ function PedigreeTable({ pedigree }: { pedigree: FiveGenerationPedigree }) {
   return (
     <section className="pedigree-section">
       <h3>5代血統表</h3>
-      <div className="pedigree-grid">
-        {pedigree.generations.map((generation, index) => (
-          <div className="pedigree-column" key={`${pedigree.rootHorseId}-${index}`}>
-            <h4>{index + 1}代前</h4>
-            {generation.map((node, nodeIndex) => (
-              <div className="pedigree-node" key={`${node.id}-${index}-${nodeIndex}`}>
+      <div className="pedigree-scroll">
+        <div className="pedigree-headings" aria-hidden="true">
+          {pedigree.generations.map((_, index) => (
+            <h4 key={`${pedigree.rootHorseId}-heading-${index}`}>{index + 1}代前</h4>
+          ))}
+        </div>
+        <div className="pedigree-grid">
+          {pedigree.generations.flatMap((generation, index) => {
+            const rowSpan = 16 / 2 ** index;
+            return generation.map((node, nodeIndex) => (
+              <div
+                className="pedigree-node"
+                key={`${node.id}-${index}-${nodeIndex}`}
+                style={{
+                  gridColumn: index + 1,
+                  gridRow: `${nodeIndex * rowSpan + 1} / span ${rowSpan}`,
+                }}
+              >
                 <strong>{node.name}</strong>
-                {node.sireLine !== node.name ? <span className="pedigree-line">{node.sireLine}</span> : null}
+                {node.sireLine !== node.name ? (
+                  <span className="pedigree-line">{formatSireLineName(node.sireLine)}</span>
+                ) : null}
                 <FactorList factors={node.factors} />
               </div>
-            ))}
-          </div>
-        ))}
+            ));
+          })}
+        </div>
       </div>
     </section>
   );
@@ -916,7 +1014,7 @@ function FactorList({ factors }: { factors?: InbreedingFactor[] }) {
     <div className="factor-list" aria-label="因子">
       {factors.map((factor) => (
         <span className="factor-chip" data-factor={factor} key={factor}>
-          {factorLabels[factor]}
+          {factorChipLabels[factor]}
         </span>
       ))}
     </div>
@@ -947,6 +1045,15 @@ function formatMyostatinProfile(profile: MyostatinProfile): string {
   const probabilities = profile.probabilities;
   const probabilityText = `CC ${formatProbability(probabilities.CC)} / CT ${formatProbability(probabilities.CT)} / TT ${formatProbability(probabilities.TT)}`;
   return profile.genotype ? `${profile.genotype} (${probabilityText})` : probabilityText;
+}
+
+function formatSireLineName(sireLine: string): string {
+  return sireLineLabels[sireLine] ?? sireLine;
+}
+
+function formatFamilyNumber(familyNumber: string | undefined, legacyMareLine?: string): string {
+  if (!familyNumber) return legacyMareLine ?? "-";
+  return familyNumber.endsWith("号族") ? familyNumber : `${familyNumber}号族`;
 }
 
 function formatProbability(value: number): string {

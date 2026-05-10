@@ -339,29 +339,40 @@ th {
   min-width: 0;
 }
 
-.pedigree-grid {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(5, minmax(160px, 1fr));
+.pedigree-scroll {
   overflow-x: auto;
   padding-bottom: 4px;
 }
 
-.pedigree-column {
+.pedigree-headings,
+.pedigree-grid {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
+  min-width: 840px;
 }
 
-.pedigree-column h4 {
+.pedigree-headings {
+  margin-bottom: 6px;
+}
+
+.pedigree-headings h4 {
   color: #4b5a4c;
   font-size: 13px;
   margin-bottom: 2px;
 }
 
+.pedigree-grid {
+  grid-template-rows: repeat(32, minmax(34px, auto));
+}
+
 .pedigree-node {
+  align-content: start;
   background: #ffffff;
   border: 1px solid #d8ded2;
   border-radius: 6px;
+  display: grid;
+  height: 100%;
   min-height: 46px;
   padding: 8px;
 }
