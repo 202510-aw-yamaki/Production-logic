@@ -9,6 +9,7 @@ import {
 import { getSireLineTendency } from "../src/domain/bloodlineTraits.ts";
 import { SAVE_DATA_VERSION, SEED_PATTERN_COUNT } from "../src/domain/constants.ts";
 import { defaultBroodmares, defaultStallions } from "../src/domain/horses.ts";
+import { producedHorseToBroodmare, producedHorseToStallion } from "../src/domain/homebred.ts";
 import { REAL_PEDIGREE_SOURCE_URLS } from "../src/domain/realPedigrees.ts";
 import {
   createInitialSaveData,
@@ -198,6 +199,9 @@ expectedBroodmareBloodlines.forEach(([sireLine, mareLine, bloodRegion], index) =
   assert.equal(actual.bloodRegion, bloodRegion, `broodmare ${index + 1} bloodRegion`);
 });
 
+assert.ok(defaultBroodmares.every((horse) => horse.familyNumber), "default broodmares should keep family numbers");
+assert.ok(defaultStallions.every((horse) => horse.familyNumber), "default stallions should keep family numbers");
+
 for (const horse of [...defaultStallions, ...defaultBroodmares]) {
   assert.equal(horse.pedigree.generations.length, 5, `${horse.name} should have five generations`);
   horse.pedigree.generations.forEach((generation, index) => {
@@ -282,18 +286,31 @@ const producedB = generateProducedHorse({
   createdAt: "2026-05-09T00:00:00.000Z",
 });
 assert.deepEqual(producedA.abilities, producedB.abilities, "same sire, dam and seed should be deterministic");
+assert.equal(producedA.familyNumber, dam.familyNumber, "produced horse should inherit dam familyNumber");
 assert.equal(evaluateBreeding(sire, dam).grade, "very_good", "representative pair should be very_good");
 assert.equal(evaluateBreeding(sire, dam).sireLineTendency.tendency, "acceleration", "Sunday Silence line should lean acceleration");
 assert.equal(getSireLineTendency("Roberto").tendency, "sustain", "Roberto line should lean sustain");
+assert.equal(getSireLineTendency("Roberto").label, "持続寄り", "sire-line tendency label should be Japanese");
 assert.ok(Math.min(...Object.values(producedA.abilities)) >= 32, "very_good should guarantee each ability >=32");
 assert.ok(["CC", "CT", "TT"].includes(producedA.myostatin.genotype), "produced horse should resolve myostatin genotype");
 assert.ok(
   producedA.abilityInfluences.some((influence) => influence.source === "myostatin"),
   "myostatin should be recorded as an ability influence",
 );
+assert.equal(
+  producedHorseToStallion(producedA).familyNumber,
+  dam.familyNumber,
+  "retired homebred stallion should keep dam familyNumber",
+);
+assert.equal(
+  producedHorseToBroodmare(producedA).familyNumber,
+  dam.familyNumber,
+  "retired homebred broodmare should keep dam familyNumber",
+);
 const rerolledProduced = rerollProducedHorseSeed({ horse: producedA, sire, dam, seedIndex: 43 });
 assert.equal(rerolledProduced.id, producedA.id, "reroll should keep produced horse id");
 assert.equal(rerolledProduced.seedIndex, 43, "reroll should update seedIndex");
+assert.equal(rerolledProduced.familyNumber, dam.familyNumber, "reroll should keep dam familyNumber");
 assert.notDeepEqual(rerolledProduced.abilities, producedA.abilities, "different seed should change abilities");
 assert.throws(
   () => generateProducedHorse({ sire, dam, seedIndex: SEED_PATTERN_COUNT, birthIndex: 1 }),
@@ -304,6 +321,17 @@ assert.throws(
   () => rerollProducedHorseSeed({ horse: producedA, sire, dam, seedIndex: SEED_PATTERN_COUNT }),
   /seedIndex/,
   "reroll should reject 8192",
+);
+
+assert.equal(
+  evaluatePedigree(makeFamilyNumberPedigree("family-priority", ["4", "9", "16"], ["LegacyMare"])).mareLineDiversityCount,
+  3,
+  "familyNumber should be preferred for mare-side diversity",
+);
+assert.equal(
+  evaluatePedigree(makeFamilyNumberPedigree("legacy-mareline", [], ["M1", "M2", "M3"])).mareLineDiversityCount,
+  3,
+  "legacy mareLine should be used when familyNumber is missing",
 );
 
 const goodSire = makeSyntheticStallion("good-sire", ["A", "B", "C", "D", "E", "F"], ["M"]);
@@ -496,6 +524,25 @@ function makeSyntheticPedigree(rootHorseId, sireLines, mareLines, uniqueIds) {
   };
 }
 
+function makeFamilyNumberPedigree(rootHorseId, familyNumbers, mareLines) {
+  return {
+    rootHorseId,
+    generations: Array.from({ length: 5 }, (_, generationIndex) =>
+      Array.from({ length: 2 ** (generationIndex + 1) }, (_, slotIndex) => {
+        const familyNumber = familyNumbers[slotIndex % familyNumbers.length];
+        const mareLine = mareLines[slotIndex % mareLines.length];
+        return makeNode(
+          `${rootHorseId}-${generationIndex}-${slotIndex}`,
+          `S${generationIndex}-${slotIndex}`,
+          mareLine,
+          [],
+          familyNumber,
+        );
+      }),
+    ),
+  };
+}
+
 function fixedMyostatin(genotype) {
   return {
     genotype,
@@ -511,7 +558,7 @@ function averageNumber(values) {
   return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
-function makeNode(id, sireLine, mareLine, factors = []) {
+function makeNode(id, sireLine, mareLine, factors = [], familyNumber = undefined) {
   return {
     id,
     name: id,
@@ -519,5 +566,6 @@ function makeNode(id, sireLine, mareLine, factors = []) {
     mareLine,
     bloodRegion: "mixed",
     ...(factors.length > 0 ? { factors } : {}),
+    ...(familyNumber ? { familyNumber } : {}),
   };
 }
