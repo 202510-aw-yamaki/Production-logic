@@ -312,9 +312,20 @@ assert.equal(
   "retired homebred broodmare should keep dam familyNumber",
 );
 const rerolledProduced = rerollProducedHorseSeed({ horse: producedA, sire, dam, seedIndex: 43 });
-assert.equal(rerolledProduced.id, producedA.id, "reroll should keep produced horse id");
+const expectedRerolledProduced = generateProducedHorse({
+  sire,
+  dam,
+  seedIndex: 43,
+  birthIndex: producedA.birthIndex,
+  name: producedA.name,
+  createdAt: producedA.createdAt,
+});
+assert.equal(rerolledProduced.id, expectedRerolledProduced.id, "reroll should use the produced horse id for the target seed");
 assert.equal(rerolledProduced.seedIndex, 43, "reroll should update seedIndex");
 assert.equal(rerolledProduced.familyNumber, dam.familyNumber, "reroll should keep dam familyNumber");
+assert.equal(rerolledProduced.sex, expectedRerolledProduced.sex, "reroll should update sex from the target seed");
+assert.equal(rerolledProduced.surface, expectedRerolledProduced.surface, "reroll should update surface from the target seed");
+assert.deepEqual(rerolledProduced.abilities, expectedRerolledProduced.abilities, "reroll should match generated abilities for the target seed");
 assert.notDeepEqual(rerolledProduced.abilities, producedA.abilities, "different seed should change abilities");
 assert.throws(
   () => generateProducedHorse({ sire, dam, seedIndex: SEED_PATTERN_COUNT, birthIndex: 1 }),

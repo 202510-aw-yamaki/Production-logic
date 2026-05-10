@@ -214,23 +214,24 @@ export function generateProducedHorse(input: GenerateFoalInput): ProducedHorse {
 export function rerollProducedHorseSeed(input: RerollProducedHorseSeedInput): ProducedHorse {
   validateSeedIndex(input.seedIndex);
 
-  const pedigree = buildFoalPedigree(input.sire, input.dam, input.horse.id);
-  const breedingEvaluation = evaluatePedigree(pedigree);
-  const random = createSeededRandom(`${input.sire.id}:${input.dam.id}:${input.seedIndex}`);
-  const abilityResult = generateAbilityScores(input.sire, input.dam, breedingEvaluation, random);
+  const produced = generateProducedHorse({
+    sire: input.sire,
+    dam: input.dam,
+    seedIndex: input.seedIndex,
+    birthIndex: input.horse.birthIndex,
+    name: input.horse.name,
+    createdAt: input.horse.createdAt,
+  });
+  const retiredAs =
+    (input.horse.retiredAs === "stallion" && produced.sex === "male") ||
+    (input.horse.retiredAs === "broodmare" && produced.sex === "female")
+      ? input.horse.retiredAs
+      : undefined;
 
   return {
-    ...input.horse,
-    sireId: input.sire.id,
-    damId: input.dam.id,
-    seedIndex: input.seedIndex,
-    abilities: abilityResult.abilities,
-    ranks: abilityScoresToRanks(abilityResult.abilities),
-    myostatin: abilityResult.myostatin,
-    familyNumber: input.dam.familyNumber,
-    abilityInfluences: abilityResult.influences,
-    pedigree,
-    breedingEvaluation,
+    ...produced,
+    raceRecord: input.horse.raceRecord,
+    retiredAs,
   };
 }
 

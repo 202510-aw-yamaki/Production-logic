@@ -378,11 +378,25 @@ export default function GameApp() {
       producedHorses: current.producedHorses.map((item) =>
         item.id === horse.id ? rerolled : item,
       ),
+      homebredStallionIds: updateHomebredIdsAfterReroll(
+        current.homebredStallionIds,
+        horse.id,
+        rerolled,
+        "stallion",
+      ),
+      homebredBroodmareIds: updateHomebredIdsAfterReroll(
+        current.homebredBroodmareIds,
+        horse.id,
+        rerolled,
+        "broodmare",
+      ),
     }));
+    if (lastProducedId === horse.id) setLastProducedId(rerolled.id);
     setMessage(null);
     setSeedDrafts((current) => {
       const next = { ...current };
       delete next[horse.id];
+      delete next[rerolled.id];
       return next;
     });
   }
@@ -1102,4 +1116,17 @@ function parseSeedIndex(value: string): number | null {
 
 function unique(values: string[]): string[] {
   return Array.from(new Set(values));
+}
+
+function updateHomebredIdsAfterReroll(
+  ids: string[],
+  previousId: string,
+  rerolled: ProducedHorse,
+  retiredAs: "stallion" | "broodmare",
+): string[] {
+  if (!ids.includes(previousId)) return ids;
+  if (rerolled.retiredAs !== retiredAs) {
+    return ids.filter((id) => id !== previousId);
+  }
+  return unique(ids.map((id) => (id === previousId ? rerolled.id : id)));
 }
