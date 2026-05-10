@@ -51,6 +51,7 @@ export interface PedigreeNode {
   damId?: string;
   sireLine: string;
   mareLine?: string;
+  familyNumber?: string;
   bloodRegion?: BloodRegion;
   factors?: InbreedingFactor[];
   myostatin?: MyostatinProfile;
@@ -114,6 +115,7 @@ export interface Stallion {
   stabilityRank: Rank;
   sireLine: string;
   mareLine?: string;
+  familyNumber?: string;
   bloodRegion: BloodRegion;
   myostatin: MyostatinProfile;
   pedigree: FiveGenerationPedigree;
@@ -129,6 +131,7 @@ export interface Broodmare {
   surface: Surface;
   sireLine: string;
   mareLine?: string;
+  familyNumber?: string;
   bloodRegion: BloodRegion;
   myostatin: MyostatinProfile;
   pedigree: FiveGenerationPedigree;
@@ -146,6 +149,7 @@ export interface ProducedHorse {
   abilities: AbilityScores;
   ranks: AbilityRanks;
   surface: Surface;
+  familyNumber?: string;
   myostatin: MyostatinProfile;
   abilityInfluences: AbilityInfluence[];
   pedigree: FiveGenerationPedigree;

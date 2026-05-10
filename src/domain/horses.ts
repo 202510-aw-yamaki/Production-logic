@@ -44,6 +44,8 @@ const GLOBAL_MARE_LINES = [
   "Pretty Polly",
 ];
 
+const FAMILY_NUMBERS = ["1", "2", "3", "4", "5", "7", "8", "9", "10", "11", "12", "13", "14", "16", "19", "22"] as const;
+
 interface StallionProfile {
   id: string;
   name: string;
@@ -97,6 +99,7 @@ function buildPedigree(profile: {
   id: string;
   sireLine: string;
   mareLine: string;
+  familyNumber?: string;
   bloodRegion: BloodRegion;
   lineOffset: number;
 }): FiveGenerationPedigree {
@@ -117,6 +120,7 @@ function buildPedigree(profile: {
     return Array.from({ length: count }, (_, slotIndex): PedigreeNode => {
       const sireLine = sireLines[(slotIndex + generationIndex) % sireLines.length];
       const mareLine = mareLines[(slotIndex * 2 + generationIndex) % mareLines.length];
+      const familyNumber = familyNumberFromOffset(profile.lineOffset + slotIndex + generationIndex);
       const ancestorId = [
         "anc",
         slug(sireLine),
@@ -128,6 +132,7 @@ function buildPedigree(profile: {
         name: `${sireLine} ${generationIndex + 1}-${slotIndex + 1}`,
         sireLine,
         mareLine,
+        familyNumber,
         bloodRegion: regionFromLine(sireLine, profile.bloodRegion),
       };
     });
@@ -154,6 +159,7 @@ function createStallion(profile: StallionProfile): Stallion {
     stabilityRank: profile.stabilityRank,
     sireLine: profile.sireLine,
     mareLine: profile.mareLine,
+    familyNumber: familyNumberFromOffset(profile.lineOffset),
     bloodRegion: profile.bloodRegion,
     myostatin: estimateStallionMyostatin(profile),
     pedigree: REAL_PEDIGREES[profile.id] ?? buildPedigree(profile),
@@ -170,6 +176,7 @@ function createBroodmare(profile: BroodmareProfile): Broodmare {
     surface: profile.surface,
     sireLine: profile.sireLine,
     mareLine: profile.mareLine,
+    familyNumber: familyNumberFromOffset(profile.lineOffset),
     bloodRegion: profile.bloodRegion,
     myostatin: estimateBroodmareMyostatin(profile),
     pedigree: REAL_PEDIGREES[profile.id] ?? buildPedigree(profile),
@@ -182,6 +189,7 @@ export function stallionToPedigreeNode(stallion: Stallion): PedigreeNode {
     name: stallion.name,
     sireLine: stallion.sireLine,
     mareLine: stallion.mareLine,
+    familyNumber: stallion.familyNumber,
     bloodRegion: stallion.bloodRegion,
     myostatin: stallion.myostatin,
   };
@@ -193,9 +201,14 @@ export function broodmareToPedigreeNode(broodmare: Broodmare): PedigreeNode {
     name: broodmare.name,
     sireLine: broodmare.sireLine,
     mareLine: broodmare.mareLine,
+    familyNumber: broodmare.familyNumber,
     bloodRegion: broodmare.bloodRegion,
     myostatin: broodmare.myostatin,
   };
+}
+
+function familyNumberFromOffset(offset: number): string {
+  return FAMILY_NUMBERS[offset % FAMILY_NUMBERS.length];
 }
 
 const STALLION_PROFILES: StallionProfile[] = [

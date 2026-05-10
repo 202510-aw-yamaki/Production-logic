@@ -78,9 +78,9 @@ const SIRE_LINE_DELTAS: Record<SireLineTendency, AbilityDeltaMap> = {
 };
 
 const SIRE_LINE_LABELS: Record<SireLineTendency, string> = {
-  acceleration: "Acceleration",
-  sustain: "Sustain",
-  balanced: "Balanced",
+  acceleration: "瞬発寄り",
+  sustain: "持続寄り",
+  balanced: "標準",
 };
 
 const MYOSTATIN_DELTAS: Record<MyostatinGenotype, AbilityDeltaMap> = {

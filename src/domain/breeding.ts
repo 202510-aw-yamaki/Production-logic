@@ -131,7 +131,7 @@ export function evaluatePedigree(pedigree: FiveGenerationPedigree): BreedingEval
   const allNodes = pedigree.generations.flat();
   const sireLineDiversityCount = new Set(allNodes.map((node) => node.sireLine)).size;
   const mareLineDiversityCount = new Set(
-    allNodes.map((node) => node.mareLine).filter(Boolean),
+    allNodes.map((node) => node.familyNumber ?? node.mareLine).filter(Boolean),
   ).size;
   const isGoodBySireLine = sireLineDiversityCount >= 6;
   const isGoodByMareLine = mareLineDiversityCount >= 3;
@@ -187,6 +187,7 @@ export function generateProducedHorse(input: GenerateFoalInput): ProducedHorse {
     abilities: abilityResult.abilities,
     ranks: abilityScoresToRanks(abilityResult.abilities),
     surface: inheritSurface(input.sire.surface, input.dam.surface, random),
+    familyNumber: input.dam.familyNumber,
     myostatin: abilityResult.myostatin,
     abilityInfluences: abilityResult.influences,
     pedigree,
@@ -219,6 +220,7 @@ export function rerollProducedHorseSeed(input: RerollProducedHorseSeedInput): Pr
     abilities: abilityResult.abilities,
     ranks: abilityScoresToRanks(abilityResult.abilities),
     myostatin: abilityResult.myostatin,
+    familyNumber: input.dam.familyNumber,
     abilityInfluences: abilityResult.influences,
     pedigree,
     breedingEvaluation,
@@ -413,7 +415,7 @@ function buildAppliedInfluences(
     ...factorEffectsToInfluences(evaluation.outcrossFactorEffects),
     {
       source: "sire_line",
-      label: `Sire line: ${evaluation.sireLineTendency.label}`,
+      label: `父系傾向: ${evaluation.sireLineTendency.label}`,
       abilityDeltas: evaluation.sireLineTendency.abilityDeltas,
     },
     {
@@ -430,7 +432,7 @@ function buildConstitutionInfluences(evaluation: BreedingEvaluation): AbilityInf
   return [
     {
       source: "constitution",
-      label: `Inbreeding constitution penalty`,
+      label: "体質デバフ",
       abilityDeltas: { constitution: -evaluation.constitutionPenalty },
     },
   ];
@@ -443,8 +445,8 @@ function factorEffectsToInfluences(effects: FactorEffectReport[]): AbilityInflue
       source,
       label:
         effect.source === "inbreeding"
-          ? `Inbreeding: ${effect.ancestorName ?? effect.factor} / ${effect.factor}`
-          : `Outcross expression: ${effect.factor}`,
+          ? `インブリード: ${effect.ancestorName ?? effect.factor} / ${effect.factor}`
+          : `アウトブリード因子発現: ${effect.factor}`,
       abilityDeltas: effect.abilityDeltas,
     };
   });

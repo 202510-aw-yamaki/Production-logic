@@ -89,6 +89,7 @@ function normalizeSaveData(data: SaveData): SaveData {
 function normalizeProducedHorse(horse: ProducedHorse): ProducedHorse {
   return {
     ...horse,
+    familyNumber: horse.familyNumber ?? horse.pedigree.generations[0]?.[1]?.familyNumber,
     myostatin: normalizeMyostatinProfile(horse.myostatin),
     abilityInfluences: horse.abilityInfluences ?? [],
     breedingEvaluation: normalizeBreedingEvaluation(horse),
