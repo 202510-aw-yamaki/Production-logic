@@ -1,7 +1,9 @@
 import { SAVE_DATA_VERSION, SAVE_KEY } from "./constants.ts";
-import { getSireLineTendency, normalizeMyostatinProfile } from "./bloodlineTraits.ts";
+import { normalizeMyostatinProfile } from "./bloodlineTraits.ts";
+import { evaluatePedigree } from "./breeding.ts";
 import { defaultBroodmares, defaultStallions } from "./horses.ts";
-import type { BreedingEvaluation, InbreedingReport, ProducedHorse, SaveData } from "./types.ts";
+import { normalizeFamilyNumber, normalizePedigree } from "./pedigree.ts";
+import type { ProducedHorse, SaveData } from "./types.ts";
 
 export interface ParsedSaveData {
   data: SaveData;
@@ -87,36 +89,18 @@ function normalizeSaveData(data: SaveData): SaveData {
 }
 
 function normalizeProducedHorse(horse: ProducedHorse): ProducedHorse {
-  return {
+  const pedigree = normalizePedigree(horse.pedigree);
+  const familyNumber = normalizeFamilyNumber(horse.familyNumber ?? pedigree.generations[0]?.[1]?.familyNumber);
+  const normalizedHorse = {
     ...horse,
-    familyNumber: horse.familyNumber ?? horse.pedigree.generations[0]?.[1]?.familyNumber,
+    pedigree,
+    familyNumber,
+  };
+  return {
+    ...normalizedHorse,
     myostatin: normalizeMyostatinProfile(horse.myostatin),
     abilityInfluences: horse.abilityInfluences ?? [],
-    breedingEvaluation: normalizeBreedingEvaluation(horse),
-  };
-}
-
-function normalizeBreedingEvaluation(horse: ProducedHorse): BreedingEvaluation {
-  const evaluation = horse.breedingEvaluation;
-  const inbreeding = (evaluation.inbreeding ?? []).map(normalizeInbreedingReport);
-  const factorEffects = evaluation.factorEffects ?? inbreeding.flatMap((item) => item.factorEffects);
-  return {
-    ...evaluation,
-    inbreeding,
-    constitutionPenalty: evaluation.constitutionPenalty ?? 0,
-    factorEffects,
-    outcrossFactorEffects: evaluation.outcrossFactorEffects ?? [],
-    sireLineTendency:
-      evaluation.sireLineTendency ??
-      getSireLineTendency(horse.pedigree.generations[0]?.[0]?.sireLine ?? "Unknown"),
-  };
-}
-
-function normalizeInbreedingReport(report: InbreedingReport): InbreedingReport {
-  return {
-    ...report,
-    factors: report.factors ?? [],
-    factorEffects: report.factorEffects ?? [],
+    breedingEvaluation: evaluatePedigree(pedigree),
   };
 }
 

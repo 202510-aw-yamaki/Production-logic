@@ -10,6 +10,7 @@ import { getSireLineTendency } from "../src/domain/bloodlineTraits.ts";
 import { SAVE_DATA_VERSION, SEED_PATTERN_COUNT } from "../src/domain/constants.ts";
 import { defaultBroodmares, defaultStallions } from "../src/domain/horses.ts";
 import { producedHorseToBroodmare, producedHorseToStallion } from "../src/domain/homebred.ts";
+import { normalizeFamilyNumber, resolveSireLineGroup } from "../src/domain/pedigree.ts";
 import { REAL_PEDIGREE_SOURCE_URLS } from "../src/domain/realPedigrees.ts";
 import {
   createInitialSaveData,
@@ -287,11 +288,11 @@ const producedB = generateProducedHorse({
 });
 assert.deepEqual(producedA.abilities, producedB.abilities, "same sire, dam and seed should be deterministic");
 assert.equal(producedA.familyNumber, dam.familyNumber, "produced horse should inherit dam familyNumber");
-assert.equal(evaluateBreeding(sire, dam).grade, "very_good", "representative pair should be very_good");
+assert.equal(evaluateBreeding(sire, dam).grade, "good", "representative pair should be good under fifth-generation sire-line rules");
 assert.equal(evaluateBreeding(sire, dam).sireLineTendency.tendency, "acceleration", "Sunday Silence line should lean acceleration");
 assert.equal(getSireLineTendency("Roberto").tendency, "sustain", "Roberto line should lean sustain");
 assert.equal(getSireLineTendency("Roberto").label, "持続寄り", "sire-line tendency label should be Japanese");
-assert.ok(Math.min(...Object.values(producedA.abilities)) >= 32, "very_good should guarantee each ability >=32");
+assert.ok(Math.min(...Object.values(producedA.abilities)) >= 16, "good should guarantee each ability >=16");
 assert.ok(["CC", "CT", "TT"].includes(producedA.myostatin.genotype), "produced horse should resolve myostatin genotype");
 assert.ok(
   producedA.abilityInfluences.some((influence) => influence.source === "myostatin"),
@@ -324,14 +325,47 @@ assert.throws(
 );
 
 assert.equal(
-  evaluatePedigree(makeFamilyNumberPedigree("family-priority", ["4", "9", "16"], ["LegacyMare"])).mareLineDiversityCount,
-  3,
-  "familyNumber should be preferred for mare-side diversity",
+  evaluatePedigree(makeFamilyNumberPedigree("family-priority", ["4a", "9", "16", "22"], ["1", "2", "3"])).mareLineDiversityCount,
+  4,
+  "familyNumber should be normalized and preferred for mare-side diversity",
 );
 assert.equal(
-  evaluatePedigree(makeFamilyNumberPedigree("legacy-mareline", [], ["M1", "M2", "M3"])).mareLineDiversityCount,
+  evaluatePedigree(makeFamilyNumberPedigree("legacy-mareline", [], ["4a", "9", "16", "22"])).mareLineDiversityCount,
+  4,
+  "legacy mareLine should be normalized when familyNumber is missing",
+);
+assert.equal(
+  evaluatePedigree(makeFamilyNumberPedigree("three-family-numbers", ["4", "9", "16"], ["1"])).isGoodByMareLine,
+  false,
+  "three fourth-generation mare family numbers should not satisfy mare-side condition",
+);
+assert.equal(
+  evaluatePedigree(makeFamilyNumberPedigree("four-family-numbers", ["4", "9", "16", "22"], ["1"])).isGoodByMareLine,
+  true,
+  "four fourth-generation mare family numbers should satisfy mare-side condition",
+);
+assert.equal(
+  evaluatePedigree(makeSireLineGroupPedigree("five-sire-groups", ["A", "B", "C", "D", "E"])).isGoodBySireLine,
+  false,
+  "five fifth-generation male sire-line groups should not satisfy sire-side condition",
+);
+assert.equal(
+  evaluatePedigree(makeSireLineGroupPedigree("six-sire-groups", ["A", "B", "C", "D", "E", "F"])).isGoodBySireLine,
+  true,
+  "six fifth-generation male sire-line groups should satisfy sire-side condition",
+);
+assert.equal(
+  evaluatePedigree(makeSireLineGroupPedigree("northern-dancer-group", ["Northern Dancer"], ["Galileo", "Danzig"])).sireLineDiversityCount,
+  1,
+  "Galileo and Danzig should count as the same Northern Dancer middle group",
+);
+assert.equal(resolveSireLineGroup("Galileo"), "Northern Dancer", "Galileo should resolve to Northern Dancer middle group");
+assert.equal(resolveSireLineGroup("Danzig"), "Northern Dancer", "Danzig should resolve to Northern Dancer middle group");
+assert.equal(normalizeFamilyNumber("4号族a"), "4号族", "family number suffixes should be ignored");
+assert.equal(
+  evaluatePedigree(makeFamilyNumberPedigree("family-priority", ["4", "9", "16"], ["LegacyMare"])).mareLineDiversityCount,
   3,
-  "legacy mareLine should be used when familyNumber is missing",
+  "familyNumber should still be counted directly for reporting",
 );
 
 const goodSire = makeSyntheticStallion("good-sire", ["A", "B", "C", "D", "E", "F"], ["M"]);
@@ -447,7 +481,14 @@ function makePedigreeWithCross(firstGenerationIndex, secondGenerationIndex) {
   const shared = makeNode("shared", "Shared", "SharedM", ["speed", "sustain"]);
   const generations = Array.from({ length: 5 }, (_, generationIndex) =>
     Array.from({ length: 2 ** (generationIndex + 1) }, (_, slotIndex) =>
-      makeNode(`n-${generationIndex}-${slotIndex}`, `Line${generationIndex}-${slotIndex}`, `M${generationIndex}`),
+      makeNode(
+        `n-${generationIndex}-${slotIndex}`,
+        `Line${generationIndex}-${slotIndex}`,
+        `M${generationIndex}`,
+        [],
+        undefined,
+        sexFromSlot(slotIndex),
+      ),
     ),
   );
   generations[firstGenerationIndex][0] = shared;
@@ -465,6 +506,8 @@ function makeOutcrossPedigree() {
           `Line${generationIndex}-${slotIndex}`,
           `M${slotIndex}`,
           slotIndex % 3 === 0 ? ["speed"] : [],
+          undefined,
+          sexFromSlot(slotIndex),
         ),
       ),
     ),
@@ -518,7 +561,7 @@ function makeSyntheticPedigree(rootHorseId, sireLines, mareLines, uniqueIds) {
         const id = uniqueIds
           ? `${rootHorseId}-${generationIndex}-${slotIndex}`
           : `shared-${sireLine}-${mareLine}-${generationIndex}-${slotIndex}`;
-        return makeNode(id, sireLine, mareLine);
+        return makeNode(id, sireLine, mareLine, [], undefined, sexFromSlot(slotIndex), sireLine);
       }),
     ),
   };
@@ -529,14 +572,38 @@ function makeFamilyNumberPedigree(rootHorseId, familyNumbers, mareLines) {
     rootHorseId,
     generations: Array.from({ length: 5 }, (_, generationIndex) =>
       Array.from({ length: 2 ** (generationIndex + 1) }, (_, slotIndex) => {
-        const familyNumber = familyNumbers[slotIndex % familyNumbers.length];
-        const mareLine = mareLines[slotIndex % mareLines.length];
+        const pairIndex = Math.floor(slotIndex / 2);
+        const familyNumber = familyNumbers.length > 0 ? familyNumbers[pairIndex % familyNumbers.length] : undefined;
+        const mareLine = mareLines[pairIndex % mareLines.length];
         return makeNode(
           `${rootHorseId}-${generationIndex}-${slotIndex}`,
           `S${generationIndex}-${slotIndex}`,
           mareLine,
           [],
           familyNumber,
+          sexFromSlot(slotIndex),
+        );
+      }),
+    ),
+  };
+}
+
+function makeSireLineGroupPedigree(rootHorseId, sireLineGroups, sireLines = sireLineGroups) {
+  return {
+    rootHorseId,
+    generations: Array.from({ length: 5 }, (_, generationIndex) =>
+      Array.from({ length: 2 ** (generationIndex + 1) }, (_, slotIndex) => {
+        const pairIndex = Math.floor(slotIndex / 2);
+        const sireLine = sireLines[pairIndex % sireLines.length];
+        const sireLineGroup = sireLineGroups[pairIndex % sireLineGroups.length];
+        return makeNode(
+          `${rootHorseId}-${generationIndex}-${slotIndex}`,
+          sireLine,
+          `M${slotIndex}`,
+          [],
+          String((slotIndex % 8) + 1),
+          sexFromSlot(slotIndex),
+          sireLineGroup,
         );
       }),
     ),
@@ -558,11 +625,17 @@ function averageNumber(values) {
   return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
-function makeNode(id, sireLine, mareLine, factors = [], familyNumber = undefined) {
+function sexFromSlot(slotIndex) {
+  return slotIndex % 2 === 0 ? "male" : "female";
+}
+
+function makeNode(id, sireLine, mareLine, factors = [], familyNumber = undefined, sex = "male", sireLineGroup = sireLine) {
   return {
     id,
     name: id,
+    sex,
     sireLine,
+    sireLineGroup,
     mareLine,
     bloodRegion: "mixed",
     ...(factors.length > 0 ? { factors } : {}),

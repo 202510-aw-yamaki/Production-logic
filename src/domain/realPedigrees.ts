@@ -1,4 +1,9 @@
 import { getAncestorFactors } from "./ancestorFactors.ts";
+import {
+  familyNumberFromText,
+  resolveSireLineGroup,
+  sexFromRawPedigree,
+} from "./pedigree.ts";
 import type { FiveGenerationPedigree, PedigreeNode } from "./types.ts";
 
 type RawPedigreeNode = [id: string, name: string, sex: "M" | "F"];
@@ -23283,8 +23288,11 @@ function toPedigreeNode([id, name, sex]: RawPedigreeNode): PedigreeNode {
   return {
     id,
     name,
+    sex: sexFromRawPedigree(sex),
     sireLine: name,
+    sireLineGroup: resolveSireLineGroup(name),
     mareLine: sex === "F" ? name : undefined,
+    familyNumber: familyNumberFromText(name),
     bloodRegion: "mixed",
     ...(factors.length > 0 ? { factors } : {}),
   };

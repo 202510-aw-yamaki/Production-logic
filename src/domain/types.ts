@@ -49,7 +49,9 @@ export interface PedigreeNode {
   name: string;
   sireId?: string;
   damId?: string;
+  sex: Sex;
   sireLine: string;
+  sireLineGroup: string;
   mareLine?: string;
   familyNumber?: string;
   bloodRegion?: BloodRegion;

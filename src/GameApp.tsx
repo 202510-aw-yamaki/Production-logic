@@ -17,6 +17,7 @@ import {
 } from "./domain/breeding.ts";
 import { getSireLineTendency } from "./domain/bloodlineTraits.ts";
 import { producedHorseToBroodmare, producedHorseToStallion } from "./domain/homebred.ts";
+import { normalizeFamilyNumber } from "./domain/pedigree.ts";
 import {
   createInitialSaveData,
   loadFromLocalStorage,
@@ -736,11 +737,11 @@ function EvaluationView({ evaluation }: { evaluation: BreedingEvaluation }) {
       <h2>{BREEDING_GRADE_LABELS[evaluation.grade]}</h2>
       <dl className="metric-grid">
         <div>
-          <dt>父系ライン</dt>
+          <dt>5代前牡馬父系</dt>
           <dd>{evaluation.sireLineDiversityCount}</dd>
         </div>
         <div>
-          <dt>メアーライン</dt>
+          <dt>4代前牝馬ファミリーナンバー</dt>
           <dd>{evaluation.mareLineDiversityCount}</dd>
         </div>
         <div>
@@ -1052,8 +1053,7 @@ function formatSireLineName(sireLine: string): string {
 }
 
 function formatFamilyNumber(familyNumber: string | undefined, legacyMareLine?: string): string {
-  if (!familyNumber) return legacyMareLine ?? "-";
-  return familyNumber.endsWith("号族") ? familyNumber : `${familyNumber}号族`;
+  return normalizeFamilyNumber(familyNumber) ?? legacyMareLine ?? "-";
 }
 
 function formatProbability(value: number): string {

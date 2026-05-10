@@ -13,6 +13,7 @@ import {
   resolveFoalMyostatin,
 } from "./bloodlineTraits.ts";
 import { broodmareToPedigreeNode, stallionToPedigreeNode } from "./horses.ts";
+import { normalizeFamilyNumber, normalizePedigree, resolveSireLineGroup } from "./pedigree.ts";
 import type {
   AbilityDeltaMap,
   AbilityInfluence,
@@ -94,7 +95,7 @@ export function buildFoalPedigree(
 
   return {
     rootHorseId,
-    generations,
+    generations: normalizePedigree({ rootHorseId, generations }).generations,
   };
 }
 
@@ -103,7 +104,8 @@ export function evaluateBreeding(sire: Stallion, dam: Broodmare): BreedingEvalua
 }
 
 export function evaluatePedigree(pedigree: FiveGenerationPedigree): BreedingEvaluation {
-  const occurrences = collectAncestorOccurrences(pedigree);
+  const normalizedPedigree = normalizePedigree(pedigree);
+  const occurrences = collectAncestorOccurrences(normalizedPedigree);
   const inbreeding = Array.from(occurrences.values())
     .filter((items) => items.length > 1)
     .map((items) => {
@@ -128,13 +130,18 @@ export function evaluatePedigree(pedigree: FiveGenerationPedigree): BreedingEval
     })
     .sort((a, b) => b.totalBloodPercent - a.totalBloodPercent);
 
-  const allNodes = pedigree.generations.flat();
-  const sireLineDiversityCount = new Set(allNodes.map((node) => node.sireLine)).size;
+  const fifthGenerationMaleNodes = normalizedPedigree.generations[4]?.filter((node) => node.sex === "male") ?? [];
+  const fourthGenerationFemaleNodes = normalizedPedigree.generations[3]?.filter((node) => node.sex === "female") ?? [];
+  const sireLineDiversityCount = new Set(
+    fifthGenerationMaleNodes.map((node) => node.sireLineGroup ?? resolveSireLineGroup(node.sireLine)),
+  ).size;
   const mareLineDiversityCount = new Set(
-    allNodes.map((node) => node.familyNumber ?? node.mareLine).filter(Boolean),
+    fourthGenerationFemaleNodes
+      .map((node) => normalizeFamilyNumber(node.familyNumber))
+      .filter(Boolean),
   ).size;
   const isGoodBySireLine = sireLineDiversityCount >= 6;
-  const isGoodByMareLine = mareLineDiversityCount >= 3;
+  const isGoodByMareLine = mareLineDiversityCount >= 4;
   const grade: BreedingGrade =
     isGoodBySireLine && isGoodByMareLine
       ? "very_good"
@@ -163,7 +170,7 @@ export function evaluatePedigree(pedigree: FiveGenerationPedigree): BreedingEval
     ),
     factorEffects,
     outcrossFactorEffects,
-    sireLineTendency: getSireLineTendency(pedigree.generations[0]?.[0]?.sireLine ?? "Unknown"),
+    sireLineTendency: getSireLineTendency(normalizedPedigree.generations[0]?.[0]?.sireLine ?? "Unknown"),
   };
 }
 

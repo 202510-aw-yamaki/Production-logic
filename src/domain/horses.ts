@@ -8,6 +8,12 @@ import type {
   Surface,
 } from "./types.ts";
 import { estimateBroodmareMyostatin, estimateStallionMyostatin } from "./bloodlineTraits.ts";
+import {
+  familyNumberFromOffset,
+  normalizeFamilyNumber,
+  resolveSireLineGroup,
+  sexFromPedigreeSlot,
+} from "./pedigree.ts";
 import { REAL_PEDIGREES } from "./realPedigrees.ts";
 
 const GLOBAL_SIRE_LINES = [
@@ -43,8 +49,6 @@ const GLOBAL_MARE_LINES = [
   "Boudoir",
   "Pretty Polly",
 ];
-
-const FAMILY_NUMBERS = ["1", "2", "3", "4", "5", "7", "8", "9", "10", "11", "12", "13", "14", "16", "19", "22"] as const;
 
 interface StallionProfile {
   id: string;
@@ -130,9 +134,11 @@ function buildPedigree(profile: {
       return {
         id: ancestorId,
         name: `${sireLine} ${generationIndex + 1}-${slotIndex + 1}`,
+        sex: sexFromPedigreeSlot(slotIndex),
         sireLine,
+        sireLineGroup: resolveSireLineGroup(sireLine),
         mareLine,
-        familyNumber,
+        familyNumber: normalizeFamilyNumber(familyNumber),
         bloodRegion: regionFromLine(sireLine, profile.bloodRegion),
       };
     });
@@ -187,9 +193,11 @@ export function stallionToPedigreeNode(stallion: Stallion): PedigreeNode {
   return {
     id: stallion.id,
     name: stallion.name,
+    sex: "male",
     sireLine: stallion.sireLine,
+    sireLineGroup: resolveSireLineGroup(stallion.sireLine),
     mareLine: stallion.mareLine,
-    familyNumber: stallion.familyNumber,
+    familyNumber: normalizeFamilyNumber(stallion.familyNumber),
     bloodRegion: stallion.bloodRegion,
     myostatin: stallion.myostatin,
   };
@@ -199,16 +207,14 @@ export function broodmareToPedigreeNode(broodmare: Broodmare): PedigreeNode {
   return {
     id: broodmare.id,
     name: broodmare.name,
+    sex: "female",
     sireLine: broodmare.sireLine,
+    sireLineGroup: resolveSireLineGroup(broodmare.sireLine),
     mareLine: broodmare.mareLine,
-    familyNumber: broodmare.familyNumber,
+    familyNumber: normalizeFamilyNumber(broodmare.familyNumber),
     bloodRegion: broodmare.bloodRegion,
     myostatin: broodmare.myostatin,
   };
-}
-
-function familyNumberFromOffset(offset: number): string {
-  return FAMILY_NUMBERS[offset % FAMILY_NUMBERS.length];
 }
 
 const STALLION_PROFILES: StallionProfile[] = [
